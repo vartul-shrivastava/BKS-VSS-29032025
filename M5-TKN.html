@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Multi-User Token Visualizer</title>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #faf4e8;
+      --text-color: #345d7b;
+      --cursor-color: #345d7b;
+      --header-color: linear-gradient(135deg, #345d7b, #6f90a8);
+      --button-border: #345d7b;
+      --input-border: #ccc;
+      --dynamic-hash-bg: #f1f1f1;
+      --dynamic-hash-color: #333;
+      --edge-bg: #f1f1f1a8;
+      --edge-border: #ccc;
+      --ambient-shadow-light: rgba(0, 0, 0, 0.1);
+      --ambient-shadow-dark: rgba(0, 0, 0, 0.7);
+    }
+    * {
+      font-family: "Teachers", serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      cursor: none !important;
+    }
+    html, body {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    .cursor {
+      z-index: 10009;
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 30px var(--cursor-color), 0 0 40px var(--cursor-color), 0 0 50px var(--cursor-color);
+    }
+    .cursor:before {
+      z-index: 10009;
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: var(--cursor-color);
+      opacity: 0.2;
+      transform: translate(-25%, -25%);
+      border-radius: 50%;
+    }
+    .cursor.hover {
+      z-index: 10009;
+      transform: scale(2);
+      background-color: var(--bg-color);
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 40px var(--cursor-color);
+    }
+    .mouse-tail {
+      z-index: 10009;
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: rgba(52,93,123, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: fadeTail 1s forwards;
+    }
+    @keyframes fadeTail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.5); }
+    }
+    #global-settings, .div-wrapper { z-index: 9999; }
+    input, button, select {
+      padding: 10px;
+      margin: 10px 0;
+      max-width: 15rem;
+      background: transparent;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: var(--text-color);
+    }
+    button {
+      border: 1px solid var(--button-border);
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+    .user-management {
+      height: 95%;
+      max-width: 20rem;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 8000;
+      background: var(--bg-color);
+      padding: 10px 15px;
+      border: 2px solid var(--button-border);
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    #modalContainer {
+      height: 100rem;
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      padding: 20px;
+      overflow-x: auto;
+      justify-content: center;
+      align-items: flex-start;
+      position: relative;
+    }
+    .modal-window {
+      flex: auto;
+      max-width: 800px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      border: 2px solid var(--button-border);
+      border-radius: 8px;
+      box-shadow: 0 30px 60px #345d7b;
+      z-index: 10000;
+      margin: 10px;
+    }
+    .modal-header {
+      height: 80px;
+      padding: 0 10px;
+      background-color: var(--cursor-color);
+      color: var(--bg-color);
+      font-weight: bold;
+      font-size: 17px;
+      display: flex;
+      align-items: center;
+      text-align: right;
+      cursor: move;
+    }
+    .btn-header {
+      margin-left: auto;
+      margin-right: 0;
+    }
+    .modal-header button {
+      width: 1rem;
+      background: transparent;
+      border: none;
+      color: var(--bg-color);
+      cursor: pointer;
+    }
+    .modal-content {
+      display: flex;
+      flex-direction: row;
+      z-index: 10000;
+      padding: 15px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .modal-content .transfer-section,
+    .modal-content .inventory-section,
+    .modal-content .inventory-title,
+    .modal-content .message-container {
+      margin: 5px;
+    }
+    .message-container {
+      padding: 0.7rem;
+      background: linear-gradient(135deg, #d6eeff8f, #8eaec55b);
+      border-radius: 10px;
+      align-items: center;
+      text-align: center;
+      font-weight: bold;
+      color: #345d7b;
+      border: 1px solid var(--input-border);
+    }
+    .token-balloon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      margin: 5px;
+      border: 4px solid;
+      border-radius: 50%;
+      font-weight: bold;
+      width: 80px;
+      height: 80px;
+    }
+    .coin-icon {
+      display: inline-block;
+      font-size: 2em;
+      color: goldenrod;
+      margin: 5px;
+    }
+    #systemTray { 
+      width: 100%;
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 10000;
+      justify-content: flex-end;
+    }
+    .tray-item {
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--button-border);
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="cursor"></div>
+  <div class="user-management">
+    <h1>Multi-User Token Visualizer</h1>
+    <p>
+      Add users to the system. Each user starts with a wallet of 100 coins, two fungible tokens (with unique codes), and one unique NFT (non-transferable). You can transfer coins, fungible tokens, or attempt an NFT transfer (which will trigger an error).
+    </p>
+    <input type="text" id="newUserName" placeholder="Enter new user name">
+    <button id="addUser">Add User</button>
+    <div id="userList"><strong>Current Users:</strong></div>
+  </div>
+  <div id="modalContainer"></div>
+  <div id="systemTray"></div>
+  <script>
+    // Custom Cursor
+    const cursor = document.querySelector(".cursor");
+    document.addEventListener("mousemove", (e) => {
+      cursor.style.top = `${e.clientY}px`;
+      cursor.style.left = `${e.clientX}px`;
+    });
+    
+    // Global Data
+    let users = [];
+    let modals = {};
+    let userAssets = {};
+    const tokenModels = {
+      coin: { type: "coin", name: "Coin", icon: "🪙", color: "goldenrod" },
+      fungible: { type: "fungible", name: "Fungible Token", icon: "💎", color: "blue" },
+      nft: { type: "nft", name: "Non Fungible Token", icon: "🖼️", color: "purple" }
+    };
+    
+    // Create a Token Balloon
+    function createTokenBalloon(tokenObj) {
+      const model = tokenModels[tokenObj.type];
+      const div = document.createElement("div");
+      div.classList.add("token-balloon");
+      div.style.borderColor = model.color;
+      div.innerText = `${model.icon}\n${tokenObj.code}`;
+      div.dataset.tokenType = tokenObj.type;
+      div.dataset.tokenCode = tokenObj.code;
+      return div;
+    }
+    
+    // UI Update Functions
+    function updateUserList() {
+      const userListDiv = document.getElementById("userList");
+      userListDiv.innerHTML = "<strong>Current Users:</strong> " + users.join(", ");
+      updateAllModals();
+    }
+    
+    function updateAllModals() {
+      users.forEach((user, index) => {
+        if (!modals[user]) {
+          createUserModal(user, index);
+        } else {
+          updateRecipientDropdown(user);
+          updateTransferDropdown(user);
+          updateInventory(user);
+        }
+      });
+    }
+    
+    // Create User Modal & Initialize Assets
+    function createUserModal(user, index) {
+      const modal = document.createElement("div");
+      modal.className = "modal-window";
+      modal.id = "modal-" + user;
+      modal.style.top = (50 + index * 30) + "px";
+      modal.style.left = (260 + index * 40) + "px";
+      
+      const header = document.createElement("div");
+      header.className = "modal-header";
+      const titleSpan = document.createElement("span");
+      titleSpan.className = "modal-title";
+      titleSpan.innerText = user;
+      header.appendChild(titleSpan);
+      const btnHeader = document.createElement("div");
+      btnHeader.className = "btn-header";
+      const minBtn = document.createElement("button");
+      minBtn.className = "minimize";
+      minBtn.innerText = "_";
+      minBtn.title = "Minimize";
+      minBtn.onclick = function(e) { e.stopPropagation(); minimizeModal(user); };
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "close";
+      closeBtn.innerText = "X";
+      closeBtn.title = "Close";
+      closeBtn.onclick = function(e) { e.stopPropagation(); closeModal(user); };
+      btnHeader.appendChild(minBtn);
+      btnHeader.appendChild(closeBtn);
+      header.appendChild(btnHeader);
+      
+      const content = document.createElement("div");
+      content.className = "modal-content";
+      content.innerHTML = `
+          <div class="transfer-section">
+            <label>Transfer Type:</label>
+            <select class="transfer-type-dropdown" data-user="${user}">
+              <option value="coin">Coin</option>
+              <option value="fungible">Fungible Token</option>
+              <option value="nft">NFT</option>
+            </select>
+            <div class="transfer-input-section"></div>
+            <br>
+            <label>Select Recipient:</label>
+            <select class="recipient-dropdown" data-user="${user}"></select>
+            <br>
+            <button class="send-transfer" data-user="${user}">Send</button>
+          </div>
+          <div class="inventory-section">
+            <div class="inventory-title">Wallet (Coins):</div>
+            <div class="coin-inventory" id="wallet-${user}"></div>
+            <div class="inventory-title">Fungible Tokens:</div>
+            <div class="message-container" id="fungible-${user}"></div>
+            <div class="inventory-title">Non Fungible Tokens (Non-transferable):</div>
+            <div class="message-container" id="nft-${user}"></div>
+          </div>
+      `;
+      
+      modal.innerHTML = "";
+      modal.appendChild(header);
+      modal.appendChild(content);
+      document.getElementById("modalContainer").appendChild(modal);
+      modals[user] = modal;
+      
+      userAssets[user] = {
+        wallet: 100,
+        fungible: [
+          { type: "fungible", code: `${user}-01F` },
+          { type: "fungible", code: `${user}-02F` }
+        ],
+        nft: [
+          { type: "nft", code: `${user}-01NFT` }
+        ]
+      };
+      
+      $(modal).draggable({ handle: ".modal-header", containment: "window" })
+              .resizable({ containment: "window", minHeight: 400, minWidth: 320 });
+      
+      attachPanelEventListeners(modal);
+      updateRecipientDropdown(user);
+      updateTransferDropdown(user);
+      updateInventory(user);
+    }
+    
+    // Populate recipient dropdown
+    function updateRecipientDropdown(user) {
+      const modal = modals[user];
+      if (!modal) return;
+      const select = modal.querySelector(`.recipient-dropdown`);
+      if (!select) return;
+      select.innerHTML = "";
+      users.filter(u => u !== user).forEach(u => {
+        const option = document.createElement("option");
+        option.value = u;
+        option.text = u;
+        select.appendChild(option);
+      });
+    }
+    
+    // Update transfer dropdown/input
+    function updateTransferDropdown(user) {
+      const modal = modals[user];
+      if (!modal) return;
+      const transferSection = modal.querySelector(".transfer-input-section");
+      const transferType = modal.querySelector(".transfer-type-dropdown").value;
+      transferSection.innerHTML = "";
+      if (transferType === "coin") {
+        const amountInput = document.createElement("input");
+        amountInput.type = "number";
+        amountInput.placeholder = "Amount";
+        amountInput.min = "1";
+        amountInput.className = "coin-amount";
+        transferSection.appendChild(amountInput);
+      } else if (transferType === "fungible") {
+        const select = document.createElement("select");
+        select.className = "fungible-transfer-dropdown";
+        userAssets[user].fungible.forEach((tokenObj, index) => {
+          const option = document.createElement("option");
+          option.value = index;
+          option.text = tokenObj.code;
+          select.appendChild(option);
+        });
+        transferSection.appendChild(select);
+      } else if (transferType === "nft") {
+        const select = document.createElement("select");
+        select.className = "nft-transfer-dropdown";
+        userAssets[user].nft.forEach((tokenObj, index) => {
+          const option = document.createElement("option");
+          option.value = index;
+          option.text = tokenObj.code;
+          select.appendChild(option);
+        });
+        transferSection.appendChild(select);
+      }
+    }
+    
+    // Update Inventory display
+    function updateInventory(user) {
+      const walletDiv = document.getElementById("wallet-" + user);
+      walletDiv.innerHTML = `<span class="coin-icon">${tokenModels.coin.icon}</span> ${userAssets[user].wallet} Coins`;
+      const fungibleDiv = document.getElementById("fungible-" + user);
+      fungibleDiv.innerHTML = "";
+      userAssets[user].fungible.forEach((tokenObj, index) => {
+        const tokenElem = createTokenBalloon(tokenObj);
+        tokenElem.dataset.index = index;
+        fungibleDiv.appendChild(tokenElem);
+      });
+      const nftDiv = document.getElementById("nft-" + user);
+      nftDiv.innerHTML = "";
+      userAssets[user].nft.forEach((tokenObj, index) => {
+        const tokenElem = createTokenBalloon(tokenObj);
+        tokenElem.dataset.index = index;
+        nftDiv.appendChild(tokenElem);
+      });
+    }
+    
+    // Attach modal event listeners
+    function attachPanelEventListeners(modal) {
+      modal.querySelector(".transfer-type-dropdown").addEventListener("change", function() {
+        const user = this.getAttribute("data-user");
+        updateTransferDropdown(user);
+      });
+      modal.querySelectorAll(".send-transfer").forEach(btn => {
+        btn.onclick = function() {
+          const sender = this.getAttribute("data-user");
+          const modal = modals[sender];
+          const transferType = modal.querySelector(".transfer-type-dropdown").value;
+          const recipient = modal.querySelector(".recipient-dropdown").value;
+          if (!recipient) {
+            alert("Select a recipient.");
+            return;
+          }
+          if (transferType === "coin") {
+            const amountInput = modal.querySelector(".coin-amount");
+            const amount = parseInt(amountInput.value);
+            if (isNaN(amount) || amount <= 0) {
+              alert("Enter a valid coin amount.");
+              return;
+            }
+            if (userAssets[sender].wallet < amount) {
+              alert("Insufficient coin balance.");
+              return;
+            }
+            userAssets[sender].wallet -= amount;
+            userAssets[recipient].wallet += amount;
+            animateTransfer(sender, recipient, "coin", amount);
+          } else if (transferType === "fungible") {
+            const tokenSelect = modal.querySelector(".fungible-transfer-dropdown");
+            if (!tokenSelect) {
+              alert("No fungible tokens to transfer.");
+              return;
+            }
+            const selectedIndex = tokenSelect.value;
+            const tokenObj = userAssets[sender].fungible.splice(selectedIndex, 1)[0];
+            userAssets[recipient].fungible.push(tokenObj);
+            animateTransfer(sender, recipient, "fungible", tokenObj);
+          } else if (transferType === "nft") {
+            alert("Error: NFT is unique to self and is not transferrable.");
+            return;
+          }
+          updateInventory(sender);
+          updateInventory(recipient);
+          users.forEach(u => updateRecipientDropdown(u));
+          updateTransferDropdown(sender);
+        };
+      });
+    }
+    
+    // Animate transfer
+    function animateTransfer(sender, recipient, type, data) {
+      let $elem, startPos, endPos;
+      if (type === "coin") {
+        $elem = $('<div class="coin-icon" style="position:absolute; z-index:10000;">' + tokenModels.coin.icon + '</div>');
+        $("body").append($elem);
+        startPos = $("#wallet-" + sender).offset();
+        endPos = $("#wallet-" + recipient).offset();
+      } else if (type === "fungible") {
+        const tokenElem = createTokenBalloon(data);
+        $elem = $(tokenElem);
+        $("body").append($elem);
+        startPos = $("#fungible-" + sender).offset();
+        endPos = $("#fungible-" + recipient).offset();
+      }
+      if (!startPos) startPos = $(modals[sender]).offset();
+      if (!endPos) endPos = $(modals[recipient]).offset();
+      $elem.css({ top: startPos.top, left: startPos.left, opacity: 1 });
+      $elem.animate({ top: endPos.top, left: endPos.left, opacity: 0.5 }, 1000, function() {
+        $elem.remove();
+      });
+    }
+    
+    // Modal Controls
+    function minimizeModal(user) {
+      const modal = modals[user];
+      if (!modal) return;
+      modal.style.display = "none";
+      addToSystemTray(user);
+    }
+    
+    function closeModal(user) {
+      if (confirm("Close " + user + "'s panel?")) {
+        const modal = modals[user];
+        if (modal) {
+          modal.remove();
+          delete modals[user];
+          delete userAssets[user];
+          users = users.filter(u => u !== user);
+          updateUserList();
+          removeFromSystemTray(user);
+        }
+      }
+    }
+    
+    function addToSystemTray(user) {
+      const tray = document.getElementById("systemTray");
+      if (tray.querySelector(`[data-user="${user}"]`)) return;
+      const item = document.createElement("div");
+      item.className = "tray-item";
+      item.dataset.user = user;
+      item.innerText = user;
+      item.title = "Click to restore " + user + "'s panel";
+      item.onclick = function() { restoreModal(user); };
+      tray.appendChild(item);
+    }
+    
+    function removeFromSystemTray(user) {
+      const tray = document.getElementById("systemTray");
+      const item = tray.querySelector(`[data-user="${user}"]`);
+      if (item) item.remove();
+    }
+    
+    function restoreModal(user) {
+      const modal = modals[user];
+      if (modal) {
+        modal.style.display = "block";
+        removeFromSystemTray(user);
+      }
+    }
+    
+    // Add New User
+    document.getElementById('addUser').addEventListener('click', function(){
+      const newUser = document.getElementById('newUserName').value.trim();
+      if (newUser === "") {
+        alert("Enter a valid user name");
+        return;
+      }
+      if (users.includes(newUser)) {
+        alert("User already exists!");
+        return;
+      }
+      users.push(newUser);
+      document.getElementById('newUserName').value = "";
+      updateUserList();
+    });
+  </script>
+</body>
+</html>

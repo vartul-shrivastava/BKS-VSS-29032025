@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dynamic Smart Contract Simulator – Fixed Gradients & Uninterrupted Transactions</title>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #faf4e8;
+      --text-color: #345d7b;
+      --cursor-color: #345d7b;
+      --button-border: #345d7b;
+      --input-border: #ccc;
+      --ambient-shadow-light: rgba(0, 0, 0, 0.1);
+      --ambient-shadow-dark: rgba(0, 0, 0, 0.7);
+    }
+    * {
+      font-family: "Teachers", serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      cursor: none !important;
+    }
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: auto;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+    .cursor {
+      z-index: 10000;
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 30px var(--cursor-color), 0 0 40px var(--cursor-color), 0 0 50px var(--cursor-color);
+    }
+    .cursor:before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: var(--cursor-color);
+      opacity: 0.2;
+      transform: translate(-25%, -25%);
+      border-radius: 50%;
+    }
+    .cursor.hover {
+      transform: scale(2);
+      background-color: var(--bg-color);
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 40px var(--cursor-color);
+    }
+    .mouse-tail {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: rgba(52,93,123, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: fadeTail 1s forwards;
+    }
+    @keyframes fadeTail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.5); }
+    }
+    
+    #svg-container {
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
+    .ripple {
+      position: absolute;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      transform: scale(0);
+      animation: rippleEffect 0.6s linear;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+      z-index: 0;
+    }
+    @keyframes rippleEffect {
+      from { transform: scale(0); opacity: 0.8; }
+      to { transform: scale(5); opacity: 0; }
+    }
+    .cursor-impulse {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      opacity: 0.05;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: cursorImpulse 1s ease-out forwards;
+    }
+    @keyframes cursorImpulse {
+      0% { transform: scale(0); opacity: 0.1; }
+      100% { transform: scale(25); opacity: 0; }
+    }
+    
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .active-transaction {
+      background: linear-gradient(45deg, #ff9a9e, #fad0c4, #fad0c4, #ffdde1);
+      background-size: 200% 200%;
+      animation: gradientShift 3s ease infinite;
+    }
+    .completed {
+      background: linear-gradient(135deg, #4CAF50, #81C784) !important;
+    }
+    .defaulted {
+      background: linear-gradient(135deg, #D32F2F, #E57373) !important;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .frozen-overlay {
+      font-family: 'Times New Roman', Times, serif;
+      font-style: italic;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding:20px;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      font-weight: bold;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      pointer-events: none;
+    }
+    
+    #left-menu, #right-menu {
+      position: fixed;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      background: var(--bg-color);
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    #left-menu { left: 0; width: 200px; }
+    #right-menu { right: 0; width: 300px; }
+    #center {
+      margin: 0 320px 0 200px;
+      padding: 10px;
+      position: relative;
+    }
+    .head-menu-section {
+      text-align: left;
+      max-width: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      background: var(--bg-color);
+    }
+    .menu-section {
+      text-align: left;
+      max-height: 45%;
+      max-width: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding: 20px;
+      border-radius: 15px;
+      background: var(--bg-color);
+      box-shadow: 0 40px 60px #7390b196;
+    }
+    input[type="text"], input[type="number"], select {
+      padding: 5px;
+      font-size: 14px;
+      margin: 5px 0;
+      width: 90%;
+      border: 1px dotted #345d7b;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-color);
+    }
+    button {
+      padding: 6px 12px;
+      margin-top: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      background-color: var(--cursor-color);
+      border: none;
+      color: var(--bg-color);
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+    #party-selection, #coin-giver-selection, #tx-initiator-selection,
+    #upgrade-coin-giver-selection, #upgrade-tx-initiator-selection {
+      margin: 10px 0;
+      max-height: 100px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 5px;
+      background: var(--bg-color);
+    }
+    #party-selection label {
+      display: block;
+      margin: 3px 0;
+      font-size: 14px;
+    }
+    #simTimeDisplay {
+      text-align: center;
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: var(--text-color);
+    }
+    #visualization {
+      background-image: 
+        repeating-linear-gradient(0deg, transparent, transparent 29px, #345d7b60 30px),
+        repeating-linear-gradient(90deg, transparent, transparent 29px, #345d7b60 30px);
+      background-size: 30px 30px;
+      position: relative;
+      border: none;
+      height: 600px;
+      margin-top: 10px;
+      overflow: hidden;
+      box-shadow: inset 0 40px 60px #cccccca9;
+    }
+    #bubbleContainer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15000;
+    }
+    .contract-block {
+      position: absolute;
+      width: 250px;
+      padding: 20px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px var(--ambient-shadow-light);
+      font-size: 20px;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      overflow: hidden;
+      cursor: move;
+    }
+    .user-block {
+      position: absolute;
+      width: 150px;
+      max-height: 100px;
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 4px 8px var(--ambient-shadow-light);
+      background: linear-gradient(135deg, #2196F3, #64B5F6);
+      color: white;
+      text-align: center;
+      padding: 20px;
+      font-size: 20px;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      cursor: move;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track {
+      box-shadow: inset 0 0 5px linear-gradient(135deg, #d3e8ff, #345d7b, #d3e8ff);
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #d3e8ff, #345d7b, #d3e8ff);
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      box-shadow: 0 2px 4px rgba(255, 255, 255, 0.2);
+      background: linear-gradient(135deg, #d3e8ff, #345d7b, #d3e8ff);
+    }
+    .bubble {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 40px;
+      font-size: 14px;
+      color: white;
+      z-index: 1;
+    }
+    .arrow-line {
+      position: absolute;
+      border-top: 2px dotted #7d5d1d;
+      transform-origin: 0 50%;
+      z-index: 100;
+    }
+    .progress-bar-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 6px;
+      background: #ccc;
+    }
+    .progress-bar {
+      height: 100%;
+      background: green;
+      width: 0%;
+    }
+    /* Removed dark mode toggle button */
+    #svg-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    svg {
+      width: 100px;
+      height: 100px;
+    }
+    #svg-container {
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
+    .user-icon svg {
+      max-width: 40px;
+      margin: 0 5px;
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <!-- Custom Cursor -->
+  <div class="cursor"></div>
+  
+  <!-- Left Menu: Add User & Create Contract -->
+  <div id="left-menu">
+    <div class="head-menu-section" id="user-input">
+      <div id="svg-container" style="display: flex; flex-direction: row;"></div>
+      <h2 style="margin: 10px 0;">Smart Contract Visualizer</h2>
+      <p style="font-size:12px;margin: 10px 0;">
+        Dynamically add users and create smart contracts. Each entity appears as a draggable block and currency bubbles animate along arrow lines during transactions.
+      </p>
+      <h4>Add User</h4>
+      <input id="username" type="text" placeholder="Enter user name" />
+      <button id="addUserBtn">Add User</button>
+    </div>
+  </div>
+  
+  <!-- Center Area: Simulation Time and Visualization -->
+  <div id="center">
+    <div id="simTimeDisplay">Simulation Time: 0 hours</div>
+    <div id="visualization">
+      <div id="bubbleContainer"></div>
+    </div>
+  </div>
+  
+  <!-- Right Menu: Create & Upgrade Contract -->
+  <div id="right-menu">
+    <div class="menu-section" id="contract-draft">
+      <h4>Create Smart Contract</h4>
+      <div>
+        <label for="vssAmount">VSSCoins Amount:</label>
+        <input type="number" id="vssAmount" min="1" placeholder="Enter VSSCoins amount" />
+      </div>
+      <div>
+        <label for="breadAmount">BKSCoins Amount:</label>
+        <input type="number" id="breadAmount" min="1" placeholder="Enter BKSCoins amount" />
+      </div>
+      <div>
+        <label for="intervalDays">Interval (days):</label>
+        <input type="number" id="intervalDays" min="1" placeholder="Enter interval in days" />
+        <p style="font-size:12px; margin:3px 0;">* For demo, exchange interval = (intervalDays × 24) ÷ 2 hours.</p>
+      </div>
+      <div>
+        <label for="iterations">Number of Iterations:</label>
+        <input type="number" id="iterations" min="1" placeholder="Enter iteration count" />
+      </div>
+      <div>
+        <label>
+          <input type="checkbox" id="upgradeFlag" />
+          Upgradable?
+        </label>
+      </div>
+      <div id="party-selection">
+        <em>No users added yet.</em>
+      </div>
+      <p style="font-size:12px;">* Please select exactly two users.</p>
+      <div id="coin-giver-selection" style="display:none;">
+        <label for="coinGiver">Select VSSCoins Giver:</label>
+        <select id="coinGiver"></select>
+      </div>
+      <div id="tx-initiator-selection" style="display:none;">
+        <label for="txInitiator">Select Transaction Initiator:</label>
+        <select id="txInitiator"></select>
+      </div>
+      <p style="font-size:12px; color: #333;">
+        Gas Cost: 1.5 VSSCoins per iteration will be deducted from the selected Transaction Initiator's wallet.
+      </p>
+      <button id="createContractBtn">Create Contract</button>
+    </div>
+    
+    <div class="menu-section" id="contract-upgrade">
+      <h4>Upgrade Contract</h4>
+      <p>
+        Upgrade an existing upgradeable contract – the new state will be appended to its history.
+        If a contract is completed, you can upgrade it to reset its state for further use.
+      </p>
+      <div>
+        <label for="oldContractSelect">Choose contract to upgrade:</label>
+        <select id="oldContractSelect"></select>
+      </div>
+      <div>
+        <label for="newVssAmount">New VSSCoins Amount:</label>
+        <input type="number" id="newVssAmount" min="1" placeholder="Enter new VSSCoins amount" />
+      </div>
+      <div>
+        <label for="newBreadAmount">New BKSCoins Amount:</label>
+        <input type="number" id="newBreadAmount" min="1" placeholder="Enter new BKSCoins amount" />
+      </div>
+      <div>
+        <label for="newIntervalDays">New Interval (days):</label>
+        <input type="number" id="newIntervalDays" min="1" placeholder="Enter new interval in days" />
+      </div>
+      <div>
+        <label for="newIterations">New Iterations:</label>
+        <input type="number" id="newIterations" min="1" placeholder="Enter new iteration count" />
+      </div>
+      <div>
+        <label>
+          <input type="checkbox" id="upgradeFlag2" />
+          Keep Upgradable?
+        </label>
+      </div>
+      <div>
+        <label>
+          <input type="checkbox" id="freezerFlag" />
+          Upgrade as Freezer?
+        </label>
+        <p style="font-size:12px;margin:3px 0;">* Freezer contracts will not perform transactions but will mark the contract as frozen.</p>
+      </div>
+      <div id="upgrade-coin-giver-selection" style="display:none;">
+        <label for="upgradeCoinGiver">Select New VSSCoins Giver:</label>
+        <select id="upgradeCoinGiver"></select>
+      </div>
+      <div id="upgrade-tx-initiator-selection" style="display:none;">
+        <label for="upgradeTxInitiator">Select New Transaction Initiator:</label>
+        <select id="upgradeTxInitiator"></select>
+      </div>
+      <p style="font-size:12px; color: #333;">
+        Gas Cost: 1.5 VSSCoins per iteration will be deducted from the selected Transaction Initiator's wallet.
+      </p>
+      <div id="upgrade-parties-display" style="display:none; margin-top: 10px; font-size: 14px; color: #333;"></div>
+      <button id="upgradeContractBtn">Upgrade Contract</button>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => { document.getElementById("svg-container").innerHTML = data; })
+        .catch(error => console.error("Error loading SVG:", error));
+    });
+
+    const cursor = document.querySelector(".cursor");
+    document.addEventListener("mousemove", (e) => {
+      cursor.style.top = e.clientY + "px";
+      cursor.style.left = e.clientX + "px";
+      const tail = document.createElement("div");
+      tail.classList.add("mouse-tail");
+      tail.style.top = e.clientY + "px";
+      tail.style.left = e.clientX + "px";
+      document.body.appendChild(tail);
+      setTimeout(() => tail.remove(), 500);
+    });
+    document.querySelectorAll("button, p, input").forEach(el => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+    });
+    document.querySelectorAll("button").forEach(button => {
+      button.addEventListener("click", (e) => {
+        button.classList.add("clicked");
+        setTimeout(() => button.classList.remove("clicked"), 400);
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = size + "px";
+        ripple.style.left = (e.pageX - size / 2) + "px";
+        ripple.style.top = (e.pageY - size / 2) + "px";
+        ripple.classList.add("ripple");
+        document.body.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      });
+    });
+    document.addEventListener("click", (e) => {
+      const impulses = 2, interval = 90;
+      for (let i = 0; i < impulses; i++) {
+        setTimeout(() => {
+          const impulse = document.createElement("span");
+          impulse.className = "cursor-impulse";
+          impulse.style.left = e.clientX + "px";
+          impulse.style.top = e.clientY + "px";
+          document.body.appendChild(impulse);
+          impulse.addEventListener("animationend", () => impulse.remove());
+        }, i * interval);
+      }
+    });
+    
+    let simulationTime = 0, users = [], smartContracts = [], contractCounter = 0;
+    
+    function renderStaticElements() {
+      const viz = document.getElementById("visualization");
+      const oldContracts = document.getElementById("contractsContainer");
+      const oldUsers = document.getElementById("usersContainer");
+      if (oldContracts) oldContracts.remove();
+      if (oldUsers) oldUsers.remove();
+
+      const contractsContainer = document.createElement("div");
+      contractsContainer.id = "contractsContainer";
+      contractsContainer.style.position = "absolute";
+      contractsContainer.style.top = "0";
+      contractsContainer.style.left = "0";
+      contractsContainer.style.right = "0";
+      contractsContainer.style.height = "200px";
+      viz.appendChild(contractsContainer);
+
+      const usersContainer = document.createElement("div");
+      usersContainer.id = "usersContainer";
+      usersContainer.style.position = "absolute";
+      usersContainer.style.bottom = "0";
+      usersContainer.style.left = "0";
+      usersContainer.style.right = "0";
+      usersContainer.style.height = "150px";
+      viz.appendChild(usersContainer);
+
+      const totalContracts = smartContracts.length;
+      const contractBlockWidth = 250, contractSpacing = 20;
+      const containerWidth = viz.clientWidth;
+      const totalContractsWidth = totalContracts * (contractBlockWidth + contractSpacing) - contractSpacing;
+      const startX = (containerWidth - totalContractsWidth) / 2;
+
+      smartContracts.forEach((sc, idx) => {
+        const block = document.createElement("div");
+        block.className = "contract-block";
+        block.dataset.id = sc.id;
+        if (sc.defaulted) block.classList.add("defaulted");
+        else if (sc.activeExchange) block.classList.add("active-transaction");
+        else if (sc.completed) block.classList.add("completed");
+        else if (sc.freezer) block.style.background = "linear-gradient(135deg, #a3d8f4, #66b3d1)";
+        else if (sc.replaced) block.style.background = "linear-gradient(135deg, #80deea, #b2ebf2)";
+        else block.style.background = "linear-gradient(135deg, #FFA500, #FFD700)";
+        block.style.left = (startX + idx * (contractBlockWidth + contractSpacing)) + "px";
+        block.style.top = "20px";
+        let historyText = "";
+        if (sc.history && sc.history.length > 0) {
+          historyText = "<br><small><strong>History:</strong></small>";
+          sc.history.forEach(entry => {
+            historyText += `<br><small>State ${entry.state}: ${entry.name} (${entry.summary})</small>`;
+          });
+        }
+        block.innerHTML = `
+          <div style="text-align:center; font-weight:bold;">${sc.name}</div>
+          <div style="text-align:center;">TS: ${sc.creationTimestamp} | Nonce: ${sc.nonce}</div>
+          <div style="font-size:13px;">
+            ${sc.summary} ${sc.freezer ? "" : " | Tx: " + sc.exchangesPerformed + "/" + sc.iterationCount}
+            ${historyText}
+          </div>`;
+        if (sc.defaulted) {
+          const overlay = document.createElement("div");
+          overlay.className = "frozen-overlay";
+          overlay.innerText = sc.adminActionRequired ? "Contract Terminated - Admin Action Required" : "Contract Frozen";
+          block.appendChild(overlay);
+        }
+        contractsContainer.appendChild(block);
+      });
+
+      const totalUsers = users.length;
+      const userBlockWidth = 150, userSpacing = 20;
+      const totalUsersWidth = totalUsers * (userBlockWidth + userSpacing) - userSpacing;
+      const userStartX = (viz.clientWidth - totalUsersWidth) / 2;
+      users.forEach((user, idx) => {
+        const userBlock = document.createElement("div");
+        userBlock.className = "user-block";
+        userBlock.dataset.index = idx;
+        if (user.frozen) {
+          userBlock.style.background = "darkred";
+          userBlock.style.color = "#fff";
+        }
+        userBlock.style.left = (userStartX + idx * (userBlockWidth + userSpacing)) + "px";
+        userBlock.style.bottom = "20px";
+        userBlock.innerHTML = `
+          <div>User ${user.name}</div>
+          <div>${user.hash}</div>
+          <div style="font-size:13px;">${user.frozen ? "FROZEN" : "VSS: " + user.balanceCoin + " | BKS: " + user.balanceBKS}</div>`;
+        if (user.frozen) {
+          const overlay = document.createElement("div");
+          overlay.className = "frozen-overlay";
+          overlay.innerText = user.adminActionRequired ? "User Frozen - Admin Action Required" : "FROZEN";
+          userBlock.appendChild(overlay);
+        }
+        usersContainer.appendChild(userBlock);
+      });
+      $(".contract-block, .user-block").draggable({
+        containment: "#visualization",
+        drag: function() { updateArrows(); }
+      });
+    }
+
+    function updateArrows() {
+      const viz = document.getElementById("visualization");
+      viz.querySelectorAll(".arrow-line").forEach(el => el.remove());
+      const vizRect = viz.getBoundingClientRect();
+      const contractsContainer = document.getElementById("contractsContainer");
+      const usersContainer = document.getElementById("usersContainer");
+      if (!contractsContainer || !usersContainer) return;
+      smartContracts.forEach(sc => {
+        const contractBlock = contractsContainer.querySelector(`.contract-block[data-id="${sc.id}"]`);
+        if (!contractBlock) return;
+        const contractRect = contractBlock.getBoundingClientRect();
+        const contractCenter = {
+          x: contractRect.left + contractRect.width / 2 - vizRect.left,
+          y: contractRect.top + contractRect.height - vizRect.top
+        };
+        sc.parties.forEach(pIdx => {
+          const userBlock = usersContainer.querySelector(`.user-block[data-index="${pIdx}"]`);
+          if (!userBlock) return;
+          const userRect = userBlock.getBoundingClientRect();
+          const userTopCenter = {
+            x: userRect.left + userRect.width / 2 - vizRect.left,
+            y: userRect.top - vizRect.top
+          };
+          const deltaX = userTopCenter.x - contractCenter.x;
+          const deltaY = userTopCenter.y - contractCenter.y;
+          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+          const arrow = document.createElement("div");
+          arrow.className = "arrow-line";
+          arrow.style.left = contractCenter.x + "px";
+          arrow.style.top = contractCenter.y + "px";
+          arrow.style.width = distance + "px";
+          arrow.style.transform = "rotate(" + angle + "deg)";
+          viz.appendChild(arrow);
+        });
+      });
+    }
+    
+    function updateVisualization() {
+      renderStaticElements();
+      updateArrows();
+      updateFrozenStatusInDOM();
+    }
+    updateVisualization();
+
+    function updateSimTimeDisplay() {
+      document.getElementById("simTimeDisplay").innerText = `Simulation Time: ${simulationTime} hour${simulationTime === 1 ? "" : "s"}`;
+    }
+    
+    setInterval(() => {
+      simulationTime++;
+      updateSimTimeDisplay();
+      checkContractExchanges();
+      updateArrows();
+    }, 1000);
+    
+    document.getElementById("addUserBtn").addEventListener("click", () => {
+      const username = document.getElementById("username").value.trim();
+      if (!username) { alert("Please enter a user name."); return; }
+      const hash = "0x" + Math.random().toString(16).slice(2, 10);
+      users.push({ name: username, hash: hash, balanceCoin: 100, balanceBKS: 100, frozen: false });
+      document.getElementById("username").value = "";
+      updatePartySelection();
+      updateVisualization();
+    });
+    
+    function updatePartySelection() {
+      const selectionDiv = document.getElementById("party-selection");
+      selectionDiv.innerHTML = "";
+      if (users.length === 0) { selectionDiv.innerHTML = "<em>No users added yet.</em>"; return; }
+      users.forEach((user, index) => {
+        const label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" value="${index}"> ${user.name} (${user.hash})`;
+        selectionDiv.appendChild(label);
+      });
+      updateCoinGiverAndTxInitiatorDropdowns();
+    }
+    
+    function updateCoinGiverAndTxInitiatorDropdowns() {
+      const checkboxes = document.querySelectorAll("#party-selection input[type='checkbox']");
+      let selectedIndices = [];
+      checkboxes.forEach(cb => { if (cb.checked) selectedIndices.push(+cb.value); });
+      const coinGiverDiv = document.getElementById("coin-giver-selection");
+      const coinGiverSelect = document.getElementById("coinGiver");
+      const txInitiatorDiv = document.getElementById("tx-initiator-selection");
+      const txInitiatorSelect = document.getElementById("txInitiator");
+      if (selectedIndices.length === 2) {
+        coinGiverSelect.innerHTML = "";
+        txInitiatorSelect.innerHTML = "";
+        selectedIndices.forEach(idx => {
+          const opt1 = document.createElement("option");
+          opt1.value = idx;
+          opt1.textContent = users[idx].name;
+          coinGiverSelect.appendChild(opt1);
+          const opt2 = document.createElement("option");
+          opt2.value = idx;
+          opt2.textContent = users[idx].name;
+          txInitiatorSelect.appendChild(opt2);
+        });
+        coinGiverDiv.style.display = "block";
+        txInitiatorDiv.style.display = "block";
+      } else {
+        coinGiverDiv.style.display = "none";
+        txInitiatorDiv.style.display = "none";
+      }
+    }
+    
+    document.getElementById("party-selection").addEventListener("change", updateCoinGiverAndTxInitiatorDropdowns);
+    
+    document.getElementById("createContractBtn").addEventListener("click", () => {
+      const vssAmount = +document.getElementById("vssAmount").value.trim();
+      const bksAmount = +document.getElementById("breadAmount").value.trim();
+      const intervalDays = +document.getElementById("intervalDays").value.trim();
+      const iterationCount = +document.getElementById("iterations").value.trim();
+      const isUpgradable = document.getElementById("upgradeFlag").checked;
+      if (!vssAmount || !bksAmount || !intervalDays || !iterationCount) { alert("Please fill in all contract fields."); return; }
+      const checkboxes = document.querySelectorAll("#party-selection input[type='checkbox']");
+      let selectedIndices = [];
+      checkboxes.forEach(cb => { if (cb.checked) selectedIndices.push(+cb.value); });
+      if (selectedIndices.length !== 2) { alert("Please select exactly two users for the contract."); return; }
+      for (let idx of selectedIndices) {
+        if (users[idx].frozen) { alert(`Cannot create contract. User "${users[idx].name}" is frozen.`); return; }
+      }
+      const coinGiver = +document.getElementById("coinGiver").value;
+      const txInitiator = +document.getElementById("txInitiator").value;
+      users[txInitiator].balanceCoin -= (1.5 * iterationCount);
+      contractCounter++;
+      let contractName = `SC-${contractCounter}`, upgradeVersion = 0;
+      if (isUpgradable) { upgradeVersion = 1; contractName = `E${upgradeVersion}SC-${contractCounter}`; }
+      const coinGiverName = users[coinGiver].name;
+      const otherUser = users[selectedIndices.find(idx => idx !== coinGiver)];
+      const initiatorName = users[txInitiator].name;
+      const summary = `IF ${coinGiverName} has ${vssAmount} VSSCoins, then ${otherUser.name} must give ${bksAmount} BKSCoins every ${intervalDays} day(s). (Gas fee of ${1.5 * iterationCount} VSSCoins deducted from ${initiatorName})`;
+      smartContracts.push({
+        id: contractCounter,
+        baseId: contractCounter,
+        upgradeVersion: upgradeVersion,
+        upgradable: isUpgradable,
+        freezer: false,
+        defaulted: false,
+        completed: false,
+        iterationCount: iterationCount,
+        defaultReason: "",
+        name: contractName,
+        vssAmount: vssAmount,
+        breadAmount: bksAmount,
+        intervalDays: intervalDays,
+        parties: selectedIndices,
+        coinGiver: coinGiver,
+        txInitiator: txInitiator,
+        summary: summary,
+        creationTimestamp: simulationTime,
+        nonce: Math.floor(Math.random() * 1000000),
+        startTime: simulationTime,
+        exchangesPerformed: 0,
+        activeExchange: false,
+        exchangeTriggeredAt: null,
+        animationsStarted: false,
+        history: []
+      });
+      document.getElementById("vssAmount").value = "";
+      document.getElementById("breadAmount").value = "";
+      document.getElementById("intervalDays").value = "";
+      document.getElementById("iterations").value = "";
+      document.getElementById("upgradeFlag").checked = false;
+      checkboxes.forEach(cb => cb.checked = false);
+      updateCoinGiverAndTxInitiatorDropdowns();
+      updateVisualization();
+      updateUpgradeOptions();
+    });
+    
+    function updateUpgradePartyDisplay() {
+      const selectedId = document.getElementById("oldContractSelect").value;
+      const upgradePartyDiv = document.getElementById("upgrade-parties-display");
+      if (!selectedId) { upgradePartyDiv.style.display = "none"; upgradePartyDiv.innerHTML = ""; return; }
+      const contract = smartContracts.find(sc => sc.id == selectedId);
+      if (contract) {
+        const partyNames = contract.parties.map(idx => users[idx].name);
+        upgradePartyDiv.innerHTML = `<strong>Contract Parties:</strong> ${partyNames.join(", ")}`;
+        upgradePartyDiv.style.display = "block";
+      } else { upgradePartyDiv.style.display = "none"; upgradePartyDiv.innerHTML = ""; }
+    }
+    document.getElementById("oldContractSelect").addEventListener("change", updateUpgradePartyDisplay);
+    
+    function updateUpgradeOptions() {
+      const oldContractSelect = document.getElementById("oldContractSelect");
+      oldContractSelect.innerHTML = "";
+      const upgradableContracts = smartContracts.filter(sc => sc.upgradable);
+      if (upgradableContracts.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No upgradeable contracts available";
+        oldContractSelect.appendChild(opt);
+        return;
+      }
+      upgradableContracts.forEach(sc => {
+        const opt = document.createElement("option");
+        opt.value = sc.id;
+        opt.textContent = sc.name;
+        oldContractSelect.appendChild(opt);
+      });
+    }
+    updateUpgradeOptions();
+    
+    function updateUpgradePartySelection() {
+      const selectedId = document.getElementById("oldContractSelect").value;
+      const upgradeCoinGiverDiv = document.getElementById("upgrade-coin-giver-selection");
+      const upgradeCoinGiverSelect = document.getElementById("upgradeCoinGiver");
+      const upgradeTxInitiatorDiv = document.getElementById("upgrade-tx-initiator-selection");
+      const upgradeTxInitiatorSelect = document.getElementById("upgradeTxInitiator");
+      if (!selectedId) { upgradeCoinGiverDiv.style.display = "none"; upgradeTxInitiatorDiv.style.display = "none"; return; }
+      const contract = smartContracts.find(sc => sc.id == selectedId);
+      if (contract) {
+        upgradeCoinGiverSelect.innerHTML = "";
+        upgradeTxInitiatorSelect.innerHTML = "";
+        contract.parties.forEach(idx => {
+          const opt1 = document.createElement("option");
+          opt1.value = idx;
+          opt1.textContent = users[idx].name;
+          upgradeCoinGiverSelect.appendChild(opt1);
+          const opt2 = document.createElement("option");
+          opt2.value = idx;
+          opt2.textContent = users[idx].name;
+          upgradeTxInitiatorSelect.appendChild(opt2);
+        });
+        upgradeCoinGiverDiv.style.display = "block";
+        upgradeTxInitiatorDiv.style.display = "block";
+      } else { upgradeCoinGiverDiv.style.display = "none"; upgradeTxInitiatorDiv.style.display = "none"; }
+    }
+    document.getElementById("oldContractSelect").addEventListener("change", updateUpgradePartySelection);
+    
+    document.getElementById("upgradeContractBtn").addEventListener("click", () => {
+      const oldContractId = document.getElementById("oldContractSelect").value;
+      if (!oldContractId) { alert("No upgradeable contract selected."); return; }
+      const contractToUpgrade = smartContracts.find(sc => sc.id == oldContractId);
+      if (!contractToUpgrade) { alert("Invalid selection."); return; }
+      const newVss = +document.getElementById("newVssAmount").value.trim();
+      const newBks = +document.getElementById("newBreadAmount").value.trim();
+      const newInterval = +document.getElementById("newIntervalDays").value.trim();
+      const newIterations = +document.getElementById("newIterations").value.trim();
+      const newUpgradable = document.getElementById("upgradeFlag2").checked;
+      const isFreezer = document.getElementById("freezerFlag").checked;
+      if (!isFreezer && (!newVss || !newBks || !newInterval || !newIterations)) {
+        alert("Please fill in all the new contract fields.");
+        return;
+      }
+      const newCoinGiver = contractToUpgrade.coinGiver;
+      const newTxInitiator = contractToUpgrade.txInitiator;
+      users[newTxInitiator].balanceCoin -= (1.5 * newIterations);
+      if (!contractToUpgrade.history) { contractToUpgrade.history = []; }
+      const stateLabel = String.fromCharCode(65 + contractToUpgrade.history.length);
+      contractToUpgrade.history.push({
+        state: stateLabel,
+        upgradeVersion: contractToUpgrade.upgradeVersion,
+        name: contractToUpgrade.name,
+        summary: contractToUpgrade.summary,
+        vssAmount: contractToUpgrade.vssAmount,
+        breadAmount: contractToUpgrade.breadAmount,
+        intervalDays: contractToUpgrade.intervalDays,
+        iterationCount: contractToUpgrade.iterationCount,
+        timestamp: contractToUpgrade.creationTimestamp
+      });
+      contractToUpgrade.upgradeVersion = newUpgradable ? contractToUpgrade.upgradeVersion + 1 : 0;
+      contractToUpgrade.upgradable = newUpgradable;
+      contractToUpgrade.freezer = isFreezer;
+      if (!isFreezer) {
+        contractToUpgrade.vssAmount = newVss;
+        contractToUpgrade.breadAmount = newBks;
+        contractToUpgrade.intervalDays = newInterval;
+        contractToUpgrade.iterationCount = newIterations;
+      } else {
+        contractToUpgrade.vssAmount = 0;
+        contractToUpgrade.breadAmount = 0;
+        contractToUpgrade.intervalDays = 0;
+        contractToUpgrade.iterationCount = 0;
+      }
+      contractToUpgrade.coinGiver = newCoinGiver;
+      contractToUpgrade.txInitiator = newTxInitiator;
+      let newName;
+      if (newUpgradable) { newName = `E${contractToUpgrade.upgradeVersion}SC-${contractToUpgrade.baseId}`; }
+      else { newName = `SC-${contractToUpgrade.baseId}-U${contractToUpgrade.upgradeVersion}`; }
+      if (isFreezer) { newName = `FREEZER-SC-${contractToUpgrade.baseId}`; }
+      let summary;
+      if (isFreezer) { summary = `This contract is a freezer version. It has been replaced/frozen with new state.`; }
+      else {
+        const newCoinGiverName = users[newCoinGiver].name;
+        const otherPartyIndex = contractToUpgrade.parties.find(idx => idx !== newCoinGiver);
+        const otherPartyName = users[otherPartyIndex].name;
+        summary = `IF ${newCoinGiverName} has ${newVss} VSSCoins, then ${otherPartyName} must give ${newBks} BKSCoins every ${newInterval} day(s). (Gas fee of ${1.5 * newIterations} VSSCoins deducted from ${users[newTxInitiator].name})`;
+      }
+      contractToUpgrade.name = newName;
+      contractToUpgrade.summary = summary;
+      contractToUpgrade.creationTimestamp = simulationTime;
+      contractToUpgrade.nonce = Math.floor(Math.random() * 1000000);
+      contractToUpgrade.startTime = simulationTime;
+      contractToUpgrade.exchangesPerformed = 0;
+      contractToUpgrade.activeExchange = false;
+      contractToUpgrade.exchangeTriggeredAt = null;
+      contractToUpgrade.animationsStarted = false;
+      contractToUpgrade.completed = false;
+      document.getElementById("newVssAmount").value = "";
+      document.getElementById("newBreadAmount").value = "";
+      document.getElementById("newIntervalDays").value = "";
+      document.getElementById("newIterations").value = "";
+      document.getElementById("upgradeFlag2").checked = false;
+      document.getElementById("freezerFlag").checked = false;
+      updateVisualization();
+      updateUpgradeOptions();
+      alert(`Contract upgraded!\nNew state: ${newName}\nPrevious states: ${JSON.stringify(contractToUpgrade.history)}`);
+    });
+    
+    function checkContractExchanges() {
+      let freezeOccurred = false;
+      smartContracts.forEach(contract => {
+        if (contract.defaulted || contract.completed || contract.freezer) return;
+        const coinGiverUser = users[contract.coinGiver];
+        const otherPartyIndex = contract.parties.find(idx => idx !== contract.coinGiver);
+        const otherUser = users[otherPartyIndex];
+        if (coinGiverUser.balanceCoin < contract.vssAmount) {
+          coinGiverUser.frozen = true;
+          coinGiverUser.adminActionRequired = true;
+          contract.defaulted = true;
+          contract.adminActionRequired = true;
+          freezeOccurred = true;
+          return;
+        }
+        if (otherUser.balanceBKS < contract.breadAmount) {
+          otherUser.frozen = true;
+          otherUser.adminActionRequired = true;
+          contract.defaulted = true;
+          contract.adminActionRequired = true;
+          freezeOccurred = true;
+          return;
+        }
+        const exchangeInterval = (contract.intervalDays * 24) / 2;
+        const nextTrigger = contract.startTime + (contract.exchangesPerformed + 1) * exchangeInterval;
+        if (!contract.activeExchange && simulationTime >= nextTrigger) {
+          contract.activeExchange = true;
+          contract.exchangesPerformed++;
+          contract.exchangeTriggeredAt = Date.now();
+          contract.animationsStarted = false;
+          animateExchange(contract);
+        }
+      });
+      if (freezeOccurred) updateVisualization();
+    }
+    
+    function chainBubble(label, startX, startY, midX, midY, endX, endY, duration, bgColor, onEnd) {
+      const $bubble = $('<div class="bubble"></div>').css({
+        background: bgColor,
+        left: startX + "px",
+        top: startY + "px",
+        position: "absolute"
+      }).text(label);
+      $("#bubbleContainer").append($bubble);
+      $bubble.animate({ left: midX + "px", top: midY + "px" }, duration, function() {
+        $bubble.animate({ left: endX + "px", top: endY + "px" }, duration, function() {
+          if (onEnd) onEnd();
+          $bubble.remove();
+        });
+      });
+    }
+    
+    function animateExchange(contract) {
+      const vizRect = document.getElementById("visualization").getBoundingClientRect();
+      const contractsContainer = document.getElementById("contractsContainer");
+      const usersContainer = document.getElementById("usersContainer");
+      if (!contractsContainer || !usersContainer) return;
+      const contractBlock = contractsContainer.querySelector(`.contract-block[data-id="${contract.id}"]`);
+      const coinGiverBlock = usersContainer.querySelector(`.user-block[data-index="${contract.coinGiver}"]`);
+      const otherUserIndex = contract.parties.find(idx => idx !== contract.coinGiver);
+      const otherUserBlock = usersContainer.querySelector(`.user-block[data-index="${otherUserIndex}"]`);
+      if (!contractBlock || !coinGiverBlock || !otherUserBlock) return;
+      const contractRect = contractBlock.getBoundingClientRect();
+      const coinGiverRect = coinGiverBlock.getBoundingClientRect();
+      const otherUserRect = otherUserBlock.getBoundingClientRect();
+      const contractCenter = {
+        x: contractRect.left + contractRect.width / 2 - vizRect.left,
+        y: contractRect.top + contractRect.height / 2 - vizRect.top
+      };
+      const coinGiverStart = {
+        x: coinGiverRect.left + coinGiverRect.width / 2 - vizRect.left,
+        y: coinGiverRect.top - vizRect.top
+      };
+      const otherUserStart = {
+        x: otherUserRect.left + otherUserRect.width / 2 - vizRect.left,
+        y: otherUserRect.top - vizRect.top
+      };
+      const phaseDuration = 2000;
+      let completedBubbles = 0;
+      function onSingleBubbleEnd() {
+        completedBubbles++;
+        if (completedBubbles === 2) {
+          const coinGiver = users[contract.coinGiver];
+          const otherUser = users[contract.parties.find(idx => idx !== contract.coinGiver)];
+          coinGiver.balanceCoin -= contract.vssAmount;
+          coinGiver.balanceBKS += contract.breadAmount;
+          otherUser.balanceBKS -= contract.breadAmount;
+          otherUser.balanceCoin += contract.vssAmount;
+          if (coinGiver.balanceCoin < 0 || otherUser.balanceBKS < 0) {
+            if (coinGiver.balanceCoin < 0) { coinGiver.frozen = true; coinGiver.adminActionRequired = true; }
+            if (otherUser.balanceBKS < 0) { otherUser.frozen = true; otherUser.adminActionRequired = true; }
+            contract.defaulted = true;
+            contract.adminActionRequired = true;
+          }
+          contract.activeExchange = false;
+          contract.animationsStarted = false;
+          if (contract.exchangesPerformed >= contract.iterationCount) { contract.completed = true; }
+          updateFrozenStatusInDOM();
+          updateVisualization();
+        }
+      }
+      chainBubble(
+        "VSS" + contract.vssAmount,
+        coinGiverStart.x, coinGiverStart.y,
+        contractCenter.x, contractCenter.y,
+        otherUserStart.x, otherUserStart.y,
+        phaseDuration, "green",
+        onSingleBubbleEnd
+      );
+      chainBubble(
+        "BKS" + contract.breadAmount,
+        otherUserStart.x, otherUserStart.y,
+        contractCenter.x, contractCenter.y,
+        coinGiverStart.x, coinGiverStart.y,
+        phaseDuration, "purple",
+        onSingleBubbleEnd
+      );
+    }
+    
+    function updateFrozenStatusInDOM() {
+      users.forEach((user, idx) => {
+        const userBlock = document.querySelector(`.user-block[data-index="${idx}"]`);
+        if (userBlock) {
+          let overlay = userBlock.querySelector('.frozen-overlay');
+          if (user.frozen) {
+            if (!overlay) { overlay = document.createElement("div"); overlay.className = "frozen-overlay"; userBlock.appendChild(overlay); }
+            overlay.innerText = user.adminActionRequired ? "USER FROZEN - ADMIN ACTION REQUIRED" : "FROZEN";
+            userBlock.style.background = "darkred";
+            userBlock.style.color = "#fff";
+          } else { if (overlay) overlay.remove(); userBlock.style.background = ""; userBlock.style.color = ""; }
+        }
+      });
+      smartContracts.forEach(contract => {
+        const contractBlock = document.querySelector(`.contract-block[data-id="${contract.id}"]`);
+        if (contractBlock) {
+          let overlay = contractBlock.querySelector('.frozen-overlay');
+          if (contract.defaulted) {
+            if (!overlay) { overlay = document.createElement("div"); overlay.className = "frozen-overlay"; contractBlock.appendChild(overlay); }
+            overlay.innerText = contract.adminActionRequired ? "CONTRACT TERMINATED - ADMIN ACTION REQUIRED" : "CONTRACT FROZEN";
+          } else { if (overlay) overlay.remove(); }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

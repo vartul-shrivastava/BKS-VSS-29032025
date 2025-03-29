@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+  <style>
+    :root {
+      --bg-color: #faf4e8;
+      --text-color: #345d7b;
+      --link-color: #345d7b;
+      --link-hover-color: #6f90a8;
+      --button-bg: #faf4e8;
+      --button-border: #345d7b;
+      --button-text: #345d7b;
+      --cursor-color: #345d7b;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Teachers", serif;
+      cursor: none;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    /* Ripple Effect for Buttons */
+    .ripple {
+      position: absolute;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      transform: scale(0);
+      animation: rippleEffect 0.6s linear;
+      pointer-events: none;
+      z-index: 12000;
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+    }
+    @keyframes rippleEffect {
+      from { transform: scale(0); opacity: 0.8; }
+      to { transform: scale(5); opacity: 0; }
+    }
+    
+    /* Cursor Impulse Effect */
+    .cursor-impulse {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      opacity: 0.05;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: cursorImpulse 1s ease-out forwards;
+    }
+    @keyframes cursorImpulse {
+      0% { transform: scale(0); opacity: 0.1; }
+      100% { transform: scale(25); opacity: 0; }
+    }
+    
+    a {
+      text-decoration: none;
+      color: var(--link-color);
+      font-size: 1.2rem;
+      margin: 10px;
+      padding: 8px 16px;
+      border: 2px solid var(--button-border);
+      border-radius: 4px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    
+    a:hover {
+      background-color: var(--link-hover-color);
+      color: var(--bg-color);
+    }
+    
+    /* Optional: Custom cursor style */
+    .cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 10000;
+      transition: transform 0.1s ease-out;
+    }
+    
+    #svg-container {
+      margin-bottom: 50px;
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
+    
+    .mouse-tail {
+      z-index: 10009;
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: rgba(52,93,123, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: fadeTail 1s forwards;
+    }
+    @keyframes fadeTail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.5); }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="svg-container"></div>
+  <nav>
+    <a href="./M1-HSH.html">Hashing</a>
+    <a href="./M2-PKC.html">Public Key Cryptography</a>
+    <a href="./M3-SMC.html">Smart Contract</a>
+    <a href="./M4-DGS.html">Digital Signature</a>
+    <br>
+    <div class="height" style="height: 50px;"></div>
+    <a href="./M5-TKN.html">Intrinsic and Extrinsic Tokens</a>
+    <a href="./M6A-POS.html">Proof of Stake (PoS)</a>
+    <a href="./M6A-POS.html">Proof of Work (PoW)</a>
+  </nav>
+  <div class="cursor"></div>
+  
+  <script>
+    // Custom cursor movement
+    const cursor = document.querySelector('.cursor');
+    document.addEventListener('mousemove', (e) => {
+      cursor.style.top = `${e.clientY}px`;
+      cursor.style.left = `${e.clientX}px`;
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      cursor.style.top = `${e.clientY}px`;
+      cursor.style.left = `${e.clientX}px`;
+    
+      const tail = document.createElement("div");
+      tail.classList.add("mouse-tail");
+      tail.style.top = `${e.clientY}px`;
+      tail.style.left = `${e.clientX}px`;
+      document.body.appendChild(tail);
+      setTimeout(() => { tail.remove(); }, 500);
+    });
+    
+    document.querySelectorAll("button, p, img").forEach(el => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+    });
+    
+    document.querySelectorAll("button").forEach(button => {
+      button.addEventListener("click", (e) => {
+        button.classList.add("clicked");
+        setTimeout(() => { button.classList.remove("clicked"); }, 400);
+    
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+        ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+        ripple.classList.add("ripple");
+        button.appendChild(ripple);
+    
+        setTimeout(() => ripple.remove(), 600);
+      });
+    });
+    
+    document.addEventListener("click", (e) => {
+      const numberOfImpulses = 2;
+      const impulseInterval = 90;
+      for (let i = 0; i < numberOfImpulses; i++) {
+        setTimeout(() => {
+          const impulse = document.createElement("span");
+          impulse.className = "cursor-impulse";
+          impulse.style.left = `${e.clientX}px`;
+          impulse.style.top = `${e.clientY}px`;
+          document.body.appendChild(impulse);
+          impulse.addEventListener("animationend", () => impulse.remove());
+        }, i * impulseInterval);
+      }
+    });
+    
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => {
+          const container = document.getElementById("svg-container");
+          container.style.display = "flex";
+          container.style.alignItems = "center";
+          const svgWrapper = document.createElement("div");
+          svgWrapper.innerHTML = data;
+          const textElem = document.createElement("p");
+          textElem.style.fontSize = "2rem";
+          textElem.innerHTML = 
+            "<b>Blockchain Knowledge Stack</b><br>" +
+            "Visualization and Simulation Suite<br>" +
+            "<span style='font-size:1.57rem'>Developed by<br>Vartul Shrivastava and Prof. Shekhar Shukla</span>";
+          textElem.style.marginLeft = "20px";
+          container.appendChild(svgWrapper);
+          container.appendChild(textElem);
+        })
+        .catch(error => console.error("Error loading SVG:", error));
+    });
+  </script>
+</body>
+</html>

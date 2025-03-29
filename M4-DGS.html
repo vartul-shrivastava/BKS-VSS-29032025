@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digital Signature Demo – Progressive Peeling with Concentric Visual Layers & Masking in Transmitting Agent</title>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <style>
+    /* Base Styles */
+    body {
+      font-family: "Teachers", serif;
+      margin: 0;
+      padding: 0;
+      color: #345d7b;
+      overflow-x: hidden;
+      background-color: #faf4e8;
+    }
+    #title-section {
+      text-align: justify;
+      z-index: 11000;
+    }
+    #title-section h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+    #title-section p {
+      margin: 5px 0 0;
+      font-size: 0.8rem;
+    }
+    #transmission-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 280px;
+      height: 100%;
+      padding: 20px 15px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      z-index: 100;
+    }
+    #transmission-menu label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    #computed-bubble #final-bubble #inline-plaintext-bubble #hash-bubble #inline-hash-bubble #hash-bubble {
+      color: #133d5d;
+    }
+    #modals-container {
+      margin-left: 300px;
+      padding: 20px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: 20px;
+      align-items: flex-start;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .modal-window {
+      backdrop-filter: blur(5px);
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 20px 40px #345d7b8f;
+      padding: 15px;
+      z-index: 500;
+      width: 45%;
+      min-width: 320px;
+      position: relative;
+      overflow: hidden;
+    }
+    .arrow-container{
+      color: #133d5d;
+    }
+    .modal-header {
+      background: linear-gradient(135deg, #faf4e8, #2a487075);
+      color: #345d7b;
+      padding: 10px;
+      cursor: move;
+      border-radius: 6px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin: -15px -15px 15px -15px;
+    }
+    .modal-content {
+      overflow: auto;
+      max-height: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    textarea, input[type="text"] {
+      color: #133d5d;
+      font-size: 1rem;
+      font-weight: bolder;
+      width: 100%;
+      padding: 8px;
+      background: none;
+      font-family: "Teachers", serif;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: none;
+      box-shadow: inset 0 40px 60px #cccccc57;
+    }
+    button {
+      padding: 8px 12px;
+      cursor: pointer;
+      border: 1px solid #345d7b;
+      background: #faf4e8;
+      border-radius: 4px;
+      margin-top: 5px;
+      transition: 0.3s all ease-in-out;
+    }
+    button:hover {
+      color: #345d7b;
+      background: #fff;
+    }
+    label {
+      font-size: 0.95rem;
+      margin-top: 10px;
+    }
+    select {
+      font-size: 0.95rem;
+      padding: 5px;
+      border-radius: 4px;
+    }
+    #hash-comparison {
+      text-align: center;
+      align-items: center;
+    }
+    .bubble {
+      font-size: 15px;
+      padding: 10px;
+      background: #61c7ee;
+      border: 2px solid #345d7b;
+      border-radius: 15px;
+      text-align: center;
+      font-weight: bold;
+      line-height: 3;
+      word-wrap: break-word;
+      width: 120px;
+    }
+    .hash-container {
+      position: relative;
+      width: 170px;
+      height: 170px;
+      margin: 15px auto;
+    }
+    .hash-bubble {
+      color: #194e76;
+      transform: translate(-50%, -50%);
+      box-shadow: inset 0 0 10px 15px #dcdcdc5f;
+      border: 2px solid #345d7b;
+      font-weight: bold;
+      border-radius: 50%;
+      width: 120px;
+      height: 120px;
+      line-height: 120px;
+      text-align: center;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+    }
+    .encryption-layer {
+      box-shadow: inset 0 40px 60px #ffffff84;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .layer-label {
+      position: absolute;
+      font-style: italic;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #345d7b;
+      bottom: 0;
+      text-align: center;
+      width: 100%;
+    }
+    .final-bubble, .computed-bubble {
+      width: 120px;
+      height: 120px;
+      line-height: 120px;
+      font-size: 1.2rem;
+      margin: 10px;
+      border-radius: 50%;
+      color: #345d7b;
+      display: inline-block;
+    }
+    .final-bubble {
+      background-color: #fff;
+    }
+    .computed-bubble {
+      color: #194e76;
+      box-shadow: inset 0 0 10px 15px #dcdcdc5f;
+      border: 2px solid #345d7b;
+      font-weight: bold;
+    }
+    .verified {
+      text-align: center;
+      border-color: green;
+      box-shadow: 0 20px 30px rgba(201, 255, 201, 0.573);
+    }
+    .step-label {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-top: 15px;
+      text-align: center;
+    }
+    #received-encrypted,
+    #transition-intermediaries,
+    #final-decrypted,
+    #hash-computed-label,
+    #computed-hash-bubble,
+    #received-hash,
+    #verification-status {
+      color: #133d5d;
+      text-align: center;
+    }
+    .peel-step {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px auto;
+      border-radius: 8px;
+      box-shadow: inset 0 40px 60px #fff;
+    }
+    .peel-step h4 {
+      margin: 5px 0;
+      font-size: 0.95rem;
+      color: #345d7b;
+    }
+    .inline-hash-bubble {
+      display: inline-block;
+      width: 120px;
+      height: 120px;
+      line-height: 120px;
+      font-size: 1.2rem;
+      border-radius: 50%;
+      color: #133d5d;
+      text-align: center;
+      vertical-align: middle;
+      background-color: #fff;
+    }
+    .inline-plaintext-bubble {
+      display: inline-block;
+      width: 120px;
+      line-height: normal;
+      color: #133d5d;
+      font-size: 14px;
+      text-align: center;
+      padding: 10px;
+      background-color: #61c7ee;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      box-shadow: inset 0 0 5px linear-gradient(135deg, #d3e8ff, #345d7b, #d3e8ff);
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #d3e8ff, #345d7b, #d3e8ff);
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      box-shadow: 0 2px 4px rgba(255, 255, 255, 0.2);
+      background: linear-gradient(135deg, #d3e8ff, #345d7b, #d3e8ff);
+    }
+    :root {
+      --bg-color: #faf4e8;
+      --text-color: #345d7b;
+      --cursor-color: #345d7b;
+      --header-color: linear-gradient(135deg, #345d7b, #6f90a8);
+      --button-border: #345d7b;
+      --input-border: #ccc;
+      --dynamic-hash-bg: #f1f1f1;
+      --dynamic-hash-color: #333;
+      --edge-bg: #f1f1f1a8;
+      --edge-border: #ccc;
+      --ambient-shadow-light: rgba(0, 0, 0, 0.1);
+      --ambient-shadow-dark: rgba(0, 0, 0, 0.7);
+    }
+    * {
+      font-family: "Teachers", serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      cursor: none !important;
+    }
+    html, body {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    .cursor {
+      z-index: 10009;
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 30px var(--cursor-color), 0 0 40px var(--cursor-color), 0 0 50px var(--cursor-color);
+    }
+    .cursor:before {
+      z-index: 10009;
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: var(--cursor-color);
+      opacity: 0.2;
+      transform: translate(-25%, -25%);
+      border-radius: 50%;
+    }
+    .cursor.hover {
+      z-index: 10009;
+      transform: scale(2);
+      background-color: var(--bg-color);
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 40px var(--cursor-color);
+    }
+    .mouse-tail {
+      z-index: 10009;
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: rgba(52,93,123, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: fadeTail 1s forwards;
+    }
+    @keyframes fadeTail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.5); }
+    }
+    #global-settings, .div-wrapper {
+      z-index: 9999;
+    }
+    input, button, select {
+      padding: 10px;
+      margin: 10px 0;
+      max-width: 15rem;
+      background: transparent;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: var(--text-color);
+    }
+    button {
+      border: 1px solid var(--button-border);
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+    }
+    input[type="range" i] {
+      width: 100%;
+      height: 8px;
+      background: #ddd;
+      border-radius: 4px;
+      outline: none;
+      accent-color: #345d7b;
+      transition: background 0.3s ease-in-out;
+    }
+    ::placeholder {
+      color: #345d7b;
+    }
+    #bubble-delivery{
+      height: 1px;
+    }
+    .slider-container, .radio-container {
+      margin-bottom: 15px;
+    }
+    .annotation {
+      margin-left: 10px;
+      font-weight: bold;
+      color: #345d7b;
+    }
+    #svg-container {
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
+    svg {
+      height: 100px;
+      width: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div class="cursor"></div>
+  <div id="transmission-menu">
+    <div id="title-section">
+      <div id="svg-container" style="display: flex; flex-direction: row;"></div>
+      <h1>Digital Signature Visualization</h1>
+      <p>
+        How to use: Enter a message in the Transmitting Agent box, click "Generate Hash" to create its signature bubble, and optionally add signing layers.
+        Then click "Transmit" to simulate sending the plaintext message and its encrypted signature.
+      </p>
+    </div>
+    <div class="slider-container">
+      <label for="transmission-time">Transmission Time (ms):</label>
+      <input type="range" id="transmission-time" min="1000" max="5000" step="500" value="1000" oninput="updateAnnotation('transmission-time')">
+      <span class="annotation" id="transmission-time-annotation">1000 ms</span>
+    </div>
+    <div class="slider-container">
+      <label for="threshold-time">Threshold (ms):</label>
+      <input type="range" id="threshold-time" min="1500" max="4000" step="500" value="2500" oninput="updateAnnotation('threshold-time')">
+      <span class="annotation" id="threshold-time-annotation">2500 ms</span>
+    </div>
+    <label for="hash-algorithm">Hash Algorithm:</label>
+    <select id="hash-algorithm">
+      <option value="SHA1">SHA-1</option>
+      <option value="SHA256" selected>SHA-256</option>
+      <option value="SHA384">SHA-384</option>
+      <option value="SHA512">SHA-512</option>
+    </select>
+  </div>
+  <div id="modals-container">
+    <div class="modal-window" id="modal-X">
+      <div class="modal-header">Transmitting Agent</div>
+      <div class="modal-content">
+        <div>
+          <textarea id="message-input" placeholder="Enter your message"></textarea>
+          <button id="generate-hash">Generate Hash</button>
+          <label for="computed-hash">Computed Hash (first 8 chars):</label>
+          <input type="text" id="computed-hash" readonly>
+        </div>
+        <div>
+          <label>Signature Bubble Preview:</label>
+          <div id="hash-bubble-container" style="text-align:center;"></div>
+        </div>
+        <div>
+          <label for="encryption-option">Add Signing Layer:</label>
+          <select id="encryption-option">
+            <option value="xpriv">Transmitting Agent's Private Key</option>
+            <option value="ypub">Authorizing Agent's Public Key</option>
+            <option value="symmetric">Symmetric Key (Not recommended)</option>
+          </select>
+        </div>
+        <div>
+          <button id="add-layer">Add Signing Layer</button>
+          <button id="transmit">Transmit</button>
+        </div>
+        <div id="status-X"></div>
+      </div>
+    </div>
+    <div class="modal-window" id="modal-Y">
+      <div class="modal-header">Authenticating Agent</div>
+      <div class="modal-content">
+        <div id="received-message"></div>
+        <div id="bubble-delivery" style="position: relative;">
+          <div id="plaintext-container" style="position: absolute; top: 0; left: 10%; width: 40%;"></div>
+          <div id="encryption-container" style="position: absolute; top: 0; right: 10%; width: 40%;"></div>
+        </div>
+        <div id="received-encrypted"></div>
+        <div id="transition-intermediaries"></div>
+        <div id="final-decrypted"></div>
+        <div id="hash-computed-label"></div>
+        <div id="computed-hash-bubble" style="text-align:center;"></div>
+        <div id="hash-comparison"></div>
+        <div id="received-hash"></div>
+        <div id="verification-status"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => { document.getElementById("svg-container").innerHTML = data; })
+        .catch(error => console.error("Error loading SVG:", error));
+    });
+    function updateAnnotation(id) {
+      document.getElementById(id + "-annotation").textContent = document.getElementById(id).value + " ms";
+    }
+    $(document).ready(function(){
+      $(".modal-window").draggable({ handle: ".modal-header", containment: "body" })
+                        .resizable({ containment: "body", minWidth: 320, minHeight: 200 });
+      $(document).tooltip();
+      function encryptWithXPrivate(input) { return "E_XP(" + input + ")"; }
+      function encryptWithYPublic(input) { return "E_YP(" + input + ")"; }
+      function encryptSymmetric(input) { return "E_SYM(" + input + ")"; }
+      function decryptYPrivate(input) { return input.startsWith("E_YP(") && input.endsWith(")") ? input.slice(5, -1) : input; }
+      function decryptXPublic(input) { return input.startsWith("E_XP(") && input.endsWith(")") ? input.slice(5, -1) : input; }
+      function decryptSymmetric(input) { return input.startsWith("E_SYM(") && input.endsWith(")") ? input.slice(6, -1) : input; }
+      function applyEncryption(input, option) {
+        if(option === "xpriv") return encryptWithXPrivate(input);
+        else if(option === "ypub") return encryptWithYPublic(input);
+        else if(option === "symmetric") return encryptSymmetric(input);
+        return input;
+      }
+      function simpleHash(str) {
+        let algorithm = $("#hash-algorithm").val();
+        if(algorithm === "SHA1") return CryptoJS.SHA1(str).toString();
+        else if(algorithm === "SHA256") return CryptoJS.SHA256(str).toString();
+        else if(algorithm === "SHA384") return CryptoJS.SHA384(str).toString();
+        else if(algorithm === "SHA512") return CryptoJS.SHA512(str).toString();
+        return CryptoJS.SHA256(str).toString();
+      }
+      let baseSize = 170, increment = 50;
+      let computedHashFull = "", computedHashDisplay = "", finalEncryptedHash = "";
+      let hashContainer = null, plainMessage = "";
+      function createHashContainer(hashDisplay) {
+        let container = document.createElement("div");
+        container.className = "hash-container";
+        container.style.width = baseSize + "px";
+        container.style.height = baseSize + "px";
+        container.dataset.layerCount = 0;
+        let bubble = document.createElement("div");
+        bubble.className = "hash-bubble";
+        bubble.innerText = hashDisplay;
+        container.appendChild(bubble);
+        return container;
+      }
+      function addLayer(container, option) {
+        let count = parseInt(container.dataset.layerCount);
+        let newCount = count + 1;
+        container.dataset.layerCount = newCount;
+        let newSize = baseSize + newCount * increment;
+        container.style.width = newSize + "px";
+        container.style.height = newSize + "px";
+        let layer = document.createElement("div");
+        layer.className = "encryption-layer";
+        layer.style.width = newSize + "px";
+        layer.style.height = newSize + "px";
+        layer.style.border = "3px solid " + (option === "xpriv" ? "orange" : option === "ypub" ? "#61c7ee" : "cyan");
+        layer.style.boxShadow = "inset 0 40px 60px " + (option === "xpriv" ? "orange" : option === "ypub" ? "#61c7ee" : "cyan");
+        let label = document.createElement("div");
+        label.className = "layer-label";
+        label.innerText = (option === "xpriv" ? "Transmitting Agent's Private Key" : option === "ypub" ? "Authorizing Agent's Public Key" : "Symmetric Key");
+        layer.appendChild(label);
+        container.appendChild(layer);
+        return container;
+      }
+      function animateBubblePromise(fromSelector, toSelector, $element, duration, easing) {
+        return new Promise(function(resolve) {
+          animateBubble(fromSelector, toSelector, $element, duration, easing, null, function($bubble){ resolve($bubble); });
+        });
+      }
+      function animateBubble(fromSelector, toSelector, $element, duration, easing, onProgress, callback, persistent) {
+        let $bubble = $element.clone();
+        $("body").append($bubble);
+        let startPos = $(fromSelector).offset(), endPos = $(toSelector).offset();
+        $bubble.css({ position: 'absolute', top: startPos.top, left: startPos.left, opacity: 1, zIndex: 10000 });
+        let totalDistance = Math.sqrt(Math.pow(endPos.left - startPos.left, 2) + Math.pow(endPos.top - startPos.top, 2));
+        $bubble.animate({
+          top: endPos.top,
+          left: endPos.left,
+          opacity: 0.9
+        }, {
+          duration: duration,
+          easing: easing,
+          step: function(now, fx) {
+            if(onProgress) {
+              let currentTop = parseFloat($bubble.css("top"));
+              let currentLeft = parseFloat($bubble.css("left"));
+              let traveled = Math.sqrt(Math.pow(currentLeft - startPos.left, 2) + Math.pow(currentTop - startPos.top, 2));
+              onProgress(traveled / totalDistance, $bubble);
+            }
+          },
+          complete: function(){
+            if(callback) callback($bubble);
+            if(!persistent) { $bubble.fadeOut(500, function(){ $bubble.remove(); }); }
+          }
+        });
+      }
+      function addPeelStepCard(step, label, masked, value, visualLayer) {
+        let $stepCard = $("<div class='peel-step'></div>");
+        $stepCard.append("<h4>Step " + step + "</h4>");
+        let $wrapper = $("<div style='position: relative; display: inline-block;'></div>");
+        let $visualClone = $(visualLayer).clone().css({ position: "relative", display: "block" });
+        $wrapper.append($visualClone);
+        if(masked) {
+          let $mask = $("<div class='hash-bubble'>*****</div>").css({ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" });
+          $wrapper.append($mask);
+        }
+        $stepCard.append($wrapper);
+        $stepCard.append("<div style='font-size:0.9rem; margin-top: 5px;'>" + label + "</div>");
+        $("#transition-intermediaries").append($stepCard);
+      }
+      function simulatePeelingProcess(encryptedStr, $visualContainer) {
+        $("#transition-intermediaries").html("<div class='step-label'>Transition Intermediaries</div>");
+        let currentValue = encryptedStr, step = 1, $currentVisual = $visualContainer.clone();
+        function peelNext() {
+          if(currentValue.startsWith("E_XP(")) {
+            addPeelStepCard(step, "Decrypted using Transmitting Agent's Public Key", true, null, $currentVisual);
+            currentValue = decryptXPublic(currentValue);
+            $currentVisual.find(".encryption-layer").last().remove();
+            step++;
+            setTimeout(peelNext, 500);
+          } else if(currentValue.startsWith("E_YP(")) {
+            addPeelStepCard(step, "Decrypted using Authorizing Agent's Private Key", true, null, $currentVisual);
+            currentValue = decryptYPrivate(currentValue);
+            $currentVisual.find(".encryption-layer").last().remove();
+            step++;
+            setTimeout(peelNext, 500);
+          } else if(currentValue.startsWith("E_SYM(")) {
+            addPeelStepCard(step, "Decrypted using Symmetric Key", true, null, $currentVisual);
+            currentValue = decryptSymmetric(currentValue);
+            $currentVisual.find(".encryption-layer").last().remove();
+            step++;
+            setTimeout(peelNext, 500);
+          } else {
+            $currentVisual.find(".hash-bubble").first().text(currentValue);
+            addPeelStepCard(step, "Final Decrypted Hash", false, currentValue, $currentVisual);
+            setTimeout(function(){ displayFinalDecrypted(currentValue); }, 500);
+          }
+        }
+        peelNext();
+      }
+      function displayFinalDecrypted(finalValue) {
+        $("#final-decrypted").html("<div class='step-label'>Process-B. Computing Hash-value from Plaintext</div>")
+          .append("<div class='hash-bubble' style='position: static; display: none; transform: none;'>" + finalValue + "</div>");
+        $("#received-hash").html("<p>Final Decrypted Signature: " + finalValue + "</p>");
+        let computedHash = simpleHash(plainMessage).substr(0,8);
+        displayHashComparison(finalValue, computedHash);
+      }
+      function displayHashComparison(finalDecrypted, computed) {
+        let $finalBubble = $("<div class='final-bubble'>" + finalDecrypted + "</div>");
+        let $computedBubble = $("<div class='computed-bubble'>" + computed + "</div>");
+        $("#hash-comparison").html("")
+          .append("<div class='step-label'>Process-C. Final Hash Comparison</div>")
+          .append($finalBubble)
+          .append($computedBubble);
+        if(finalDecrypted === computed) {
+          $finalBubble.addClass("verified");
+          $computedBubble.addClass("verified");
+          $("#verification-status").html("<p><italic>Verification successful! &#10004;</italic></p>");
+        } else {
+          $("#verification-status").html("<p style='color:red;'><strong>Verification Failed: Hash mismatch!</strong></p>");
+        }
+      }
+      function simulateYDecryption(finalEncrypted, messageWithTS) {
+        let parts = messageWithTS.split(" | ");
+        let originalMessage = parts[0];
+        let computedHash = simpleHash(originalMessage).substr(0,8);
+        let container = $("<div id='plaintext-hash-container'></div>").css({
+          display: "flex",
+          "flex-direction": "row",
+          "align-items": "center",
+          "justify-content": "center",
+          gap: "20px",
+          "margin-top": "10px"
+        });
+        let plaintextBubble = $("<div></div>")
+          .addClass("inline-plaintext-bubble")
+          .html("Message:<br><p style='font-size:1.3rem;font-weight:bold'>" + originalMessage + "</p>");
+        let arrowContainer = $("<div></div>").css({
+          display: "flex",
+          "flex-direction": "column",
+          "align-items": "center"
+        }).addClass("arrow-container");
+        let arrow = $("<div>&rarr;</div>").css({ "font-size": "2rem" });
+        let arrowLabel = $("<div>hashing</div>").css({ "font-size": "0.8rem" });
+        arrowContainer.append(arrow).append(arrowLabel);
+        let hashBubble = $("<div></div>").addClass("inline-hash-bubble").text(computedHash);
+        container.append(plaintextBubble, arrowContainer, hashBubble);
+        $("#computed-hash-bubble").html("").append(container);
+        $("#hash-computed-label").html("Now, we will perform hashing of the plaintext received");
+        $("#received-encrypted").html("<div class='step-label'>Process-A. Received Encrypted Signature Container</div>")
+          .append($(hashContainer).clone());
+        let $visualContainer = $(hashContainer).clone();
+        simulatePeelingProcess(finalEncrypted, $visualContainer);
+      }
+      $("#generate-hash").click(function(){
+        let message = $("#message-input").val().trim();
+        if(message === ""){
+          alert("Enter a message first.");
+          return;
+        }
+        plainMessage = message;
+        computedHashFull = simpleHash(message);
+        computedHashDisplay = computedHashFull.substr(0,8);
+        $("#computed-hash").val(computedHashDisplay);
+        finalEncryptedHash = computedHashDisplay;
+        hashContainer = createHashContainer(computedHashDisplay);
+        $("#hash-bubble-container").html("").append(hashContainer);
+        $("#status-X").text("Signature generated (based on original message).");
+      });
+      $("#add-layer").click(function(){
+        if(!hashContainer){
+          alert("Generate the signature first.");
+          return;
+        }
+        let option = $("#encryption-option").val();
+        finalEncryptedHash = applyEncryption(finalEncryptedHash, option);
+        hashContainer = addLayer(hashContainer, option);
+        $("#hash-bubble-container").html("").append(hashContainer);
+        $(hashContainer).find('.hash-bubble').first().text("*****");
+        $("#status-X").text("Added signing layer: " + option);
+      });
+      $("#transmit").click(function(){
+        if(plainMessage === "" || !hashContainer){
+          alert("Ensure you have a message and have generated the digital signature.");
+          return;
+        }
+        $("#status-X").text("Transmitting Agent: Preparing transmission...");
+        $("#received-message, #received-hash, #verification-status, #hash-comparison, #hash-computed-label, #computed-hash-bubble, #transition-intermediaries, #final-decrypted, #received-encrypted").empty();
+        let transmissionDuration = parseInt($("#transmission-time").val());
+        let threshold = parseInt($("#threshold-time").val());
+        let ts = Date.now();
+        let messageWithTimestamp = plainMessage + " | " + ts;
+        let plaintextPromise = animateBubblePromise(
+          "#modal-X",
+          "#plaintext-container",
+          $("<div class='bubble'>Message:<br>" + plainMessage + "<br><p style='font-size:0.3rem'>" + ts + "</p></div>"),
+          transmissionDuration,
+          "swing"
+        );
+        let encryptionPromise = animateBubblePromise(
+          "#modal-X",
+          "#encryption-container",
+          $(hashContainer),
+          transmissionDuration,
+          "swing"
+        );
+        Promise.all([plaintextPromise, encryptionPromise]).then(function() {
+          let sentTimestamp = ts;
+          let receiveTime = Date.now();
+          let delay = receiveTime - sentTimestamp;
+          let msg = "Authorizing Agent: Received Message: " + messageWithTimestamp +
+                    "<br>Timestamp difference: " + delay + " ms. ";
+          if(delay > threshold) {
+            msg += "<span title='Delay " + delay + " ms exceeds threshold of " + threshold + " ms' style='color:red'><strong>[Not Accepted]</strong></span>";
+            $("#received-message").html(msg);
+            $("#verification-status").html("<p style='color:red;'><strong>Message discarded due to excessive delay.</strong></p>");
+          } else {
+            msg += "<span><strong>[Accepted]</strong></span>";
+            $("#received-message").html(msg);
+            simulateYDecryption(finalEncryptedHash, messageWithTimestamp);
+          }
+        });
+      });
+    });
+    const cursor = document.querySelector(".cursor");
+    document.addEventListener("mousemove", (e) => {
+      cursor.style.top = `${e.clientY}px`;
+      cursor.style.left = `${e.clientX}px`;
+      const tail = document.createElement("div");
+      tail.classList.add("mouse-tail");
+      tail.style.top = `${e.clientY}px`;
+      tail.style.left = `${e.clientX}px`;
+      document.body.appendChild(tail);
+      setTimeout(() => { tail.remove(); }, 500);
+    });
+    document.querySelectorAll("button, p, img").forEach(el => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+    });
+    document.querySelectorAll("button").forEach(button => {
+      button.addEventListener("click", (e) => {
+        button.classList.add("clicked");
+        setTimeout(() => { button.classList.remove("clicked"); }, 400);
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+        ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+        ripple.classList.add("ripple");
+        button.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      });
+    });
+    document.addEventListener("click", (e) => {
+      const numberOfImpulses = 2;
+      const impulseInterval = 90;
+      for (let i = 0; i < numberOfImpulses; i++) {
+        setTimeout(() => {
+          const impulse = document.createElement("span");
+          impulse.className = "cursor-impulse";
+          impulse.style.left = `${e.clientX}px`;
+          impulse.style.top = `${e.clientY}px`;
+          document.body.appendChild(impulse);
+          impulse.addEventListener("animationend", () => impulse.remove());
+        }, i * impulseInterval);
+      }
+    });
+  </script>
+</body>
+</html>

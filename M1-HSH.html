@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hashing Visualization - Automatic Matching and Edge Creation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #faf4e8;
+      --text-color: #345d7b;
+      --cursor-color: #345d7b;
+      --button-border: #345d7b;
+      --input-border: #ccc;
+      --dynamic-hash-bg: #f1f1f1;
+      --dynamic-hash-color: #333;
+      --edge-bg: #f1f1f1a8;
+      --edge-border: #ccc;
+      --ambient-shadow-light: rgba(0, 0, 0, 0.1);
+      --ambient-shadow-dark: rgba(0, 0, 0, 0.7);
+    }
+
+    * {
+      font-family: "Teachers", serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      cursor: none !important;
+    }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    .cursor {
+      z-index: 10009;
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 30px var(--cursor-color),
+                  0 0 40px var(--cursor-color), 0 0 50px var(--cursor-color);
+    }
+    .cursor:before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: var(--cursor-color);
+      opacity: 0.2;
+      transform: translate(-25%, -25%);
+      border-radius: 50%;
+    }
+    .cursor.hover {
+      transform: scale(2);
+      background-color: var(--bg-color);
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 40px var(--cursor-color);
+    }
+    .mouse-tail {
+      z-index: 10009;
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: rgba(52,93,123, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: fadeTail 1s forwards;
+    }
+    @keyframes fadeTail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.5); }
+    }
+    #global-settings, .div-wrapper { z-index: 9999; }
+    input, button, select {
+      padding: 10px;
+      margin: 10px 0;
+      width: 15rem;
+      max-width: 15rem;
+      background: transparent;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      font-size: 16px;
+      color: var(--text-color);
+    }
+    button {
+      border: 1px solid var(--button-border);
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+    #triangle-container {
+      position: relative;
+      width: 100vw;
+      margin: 20px auto;
+    }
+    #svg-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .vertex {
+      position: absolute;
+      width: 28%;
+      background: transparent;
+      padding: 10px;
+    }
+    #vertex-0 { top: 5%; left: 60%; transform: translate(-50%, 0); }
+    #vertex-1 { bottom: 5%; left: 5%; }
+    #vertex-2 { bottom: 5%; right: 15%; }
+    .vertex-inner {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .input-container { flex: 1; }
+    .hash-table-container { z-index: 1; flex-shrink: 0; max-width: 40%; }
+    svg { width: 100px; height: 100px; }
+    .dynamic-hash {
+      display: none;
+      font-size: 14px;
+      word-break: break-all;
+      background: var(--dynamic-hash-bg);
+      padding: 10px;
+      border-radius: 4px;
+      min-height: 50px;
+      color: var(--dynamic-hash-color);
+      font-family: 'Courier New', Courier, monospace;
+      margin-top: 10px;
+    }
+    .hash-table {
+      background: none;
+      box-shadow: 0 20px 40px rgba(15, 45, 109, 0.4);
+      font-family: 'Courier New', Courier, monospace;
+      margin: 10px auto;
+      border-collapse: collapse;
+    }
+    .hash-table th, .hash-table td {
+      border: 4px solid transparent;
+      padding: 4px;
+      text-align: center;
+      min-width: 16px;
+      min-height: 16px;
+    }
+    .matrix-cell {
+      color: white;
+      position: relative;
+      box-shadow: 0 2px 4px var(--ambient-shadow-light);
+    }
+    .matrix-cell.hover-highlight {
+      box-shadow: 0 0 8px 2px rgba(52, 93, 123, 0.5), 0 4px 8px rgba(0,0,0,0.2);
+      filter: brightness(1.2);
+      transform: scale(1.03);
+      transition: all 0.2s ease;
+      z-index: 2;
+    }
+    #svg-container {
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
+    .edge {
+      overflow: auto;
+      backdrop-filter: blur(20px);
+      z-index: 999;
+      position: absolute;
+      background-color: var(--edge-bg);
+      padding: 5px 10px;
+      border: 1px solid var(--edge-border);
+      border-radius: 6px;
+      font-size: 20px;
+      text-align: center;
+      max-height: 200px;
+      max-width: 300px;
+    }
+    #edge-0-1 { left: 20%; top: 10%; }
+    #edge-1-2 { left: 45%; bottom: 10%; }
+    #edge-2-0 { right: 10%; top: 10%; }
+    .diff-insert {
+      background-color: #d4fcbc;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .diff-delete {
+      background-color: #fbb6c2;
+      padding: 2px 4px;
+      border-radius: 3px;
+      text-decoration: line-through;
+    }
+    .ripple {
+      position: absolute;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      transform: scale(0);
+      animation: rippleEffect 0.6s linear;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+    }
+    @keyframes rippleEffect {
+      from { transform: scale(0); opacity: 0.8; }
+      to { transform: scale(5); opacity: 0; }
+    }
+    .cursor-impulse {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      opacity: 0.05;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: cursorImpulse 1s ease-out forwards;
+    }
+    @keyframes cursorImpulse {
+      0% { transform: scale(0); opacity: 0.1; }
+      100% { transform: scale(25); opacity: 0; }
+    }
+    /* Modal Styles */
+    #modalContainer { position: relative; z-index: 1500; }
+    .modal-window {
+      position: absolute;
+      width: 320px;
+      min-height: 400px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      border: 2px solid var(--button-border);
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      z-index: 2000;
+    }
+    .modal-header {
+      background-color: var(--cursor-color);
+      color: var(--bg-color);
+      padding: 10px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+    }
+    .modal-header button {
+      background: transparent;
+      border: none;
+      color: var(--bg-color);
+      font-size: 16px;
+      margin-left: 5px;
+      cursor: pointer;
+    }
+    .modal-content {
+      padding: 10px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .modal-content textarea {
+      width: 100%;
+      height: 60px;
+      resize: none;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      padding: 5px;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+    .modal-content button { margin-right: 5px; }
+    /* System Tray */
+    #systemTray {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .tray-item {
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--button-border);
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loading-spinner"></div>
+  </div>
+  <div class="cursor"></div>
+  <div id="triangle-container">
+    <div id="global-settings" style="position: absolute; top: 20px; left: 20px; max-width: 10rem;">
+      <div id="svg-container" style="display: flex; flex-direction: row;"></div>
+      <p style="font-size: larger; margin: 1rem 0;"><b>Multi-Text Hash Collisions Explorer and Renderer</b></p>
+      <p style="font-size: medium;">
+        Compare three strings’ hash values to see avalanche effects, collision analysis, and the deterministic nature of hash functions.
+      </p>
+      <select id="hash-algo" onchange="updateAllVertices()">
+        <option value="SHA-1">SHA-1</option>
+        <option value="SHA-256" selected>SHA-256</option>
+        <option value="SHA-384">SHA-384</option>
+        <option value="SHA-512">SHA-512</option>
+      </select>
+      <button onclick="resetAll()">Reset</button>
+    </div>
+    
+    <svg id="svg-overlay"></svg>
+    
+    <div class="vertex" id="vertex-0">
+      <h3>Text-A</h3>
+      <div class="vertex-inner">
+        <div class="input-container" style="display: flex; flex-direction: column;">
+          <input type="text" id="vertex-input-0" placeholder="Enter string for Vertex 1" oninput="updateVertex(0)">
+          <div id="vertex-dynamic-hash-0" class="dynamic-hash"></div>
+          <div class="hash-table-container" id="vertex-hash-table-0-container">
+            <div id="vertex-hash-table-0"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="vertex" id="vertex-1">
+      <div class="vertex-inner">
+        <div class="input-container">
+          <div id="vertex-dynamic-hash-1" class="dynamic-hash"></div>
+        </div>
+        <div class="hash-table-container" id="vertex-hash-table-1-container">
+          <div id="vertex-hash-table-1"></div>
+          <h3>Text-B</h3>
+          <input type="text" id="vertex-input-1" placeholder="Enter string for Vertex 2" oninput="updateVertex(1)">
+        </div>
+      </div>
+    </div>
+    
+    <div class="vertex" id="vertex-2">
+      <div class="vertex-inner">
+        <div class="input-container">
+          <div id="vertex-dynamic-hash-2" class="dynamic-hash"></div>
+        </div>
+        <div class="hash-table-container" id="vertex-hash-table-2-container">
+          <div id="vertex-hash-table-2"></div>
+          <h3>Text-C</h3>
+          <input type="text" id="vertex-input-2" placeholder="Enter string for Vertex 3" oninput="updateVertex(2)">
+        </div>
+      </div>
+    </div>
+    
+    <div class="edge" id="edge-0-1"></div>
+    <div class="edge" id="edge-1-2"></div>
+    <div class="edge" id="edge-2-0"></div>
+  </div>
+  
+  <script>
+    async function computeHash(input, algorithm) {
+      if (["SHA-1", "SHA-256", "SHA-384", "SHA-512"].includes(algorithm)) {
+        return await shaHash(input, algorithm);
+      }
+      throw new Error('Unsupported hash algorithm');
+    }
+    async function shaHash(input, algorithm) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(input);
+      const hashBuffer = await crypto.subtle.digest(algorithm, data);
+      return Array.from(new Uint8Array(hashBuffer))
+                  .map(b => b.toString(16).padStart(2, '0'))
+                  .join('');
+    }
+    function colorizeHash(hash) {
+      return hash.split('').map(char => `<span style="padding:2px;border-radius:2px;">${char}</span>`).join('');
+    }
+    function getColorForHexDigit(digit) {
+      const colors = [
+        "#345d7b", "#376887", "#3b7294", "#3d7da0", "#4089ad",
+        "#4294b9", "#44a0c5", "#45acd1", "#47b8dd", "#48c4e8",
+        "#49d0f4", "#4addff"
+      ];
+      const value = parseInt(digit, 16);
+      const index = Math.round((value / 15) * (colors.length - 1));
+      return colors[index];
+    }
+    function getSquareDimensions(length) {
+      let rows = Math.floor(Math.sqrt(length));
+      let cols = Math.ceil(length / rows);
+      while (rows * cols < length) { cols++; }
+      return { rows, cols };
+    }
+    function createSquareMatrix(hash, tableId) {
+      const { rows, cols } = getSquareDimensions(hash.length);
+      let tableHTML = `<table class="hash-table" id="${tableId}">`;
+      let index = 0;
+      for (let r = 0; r < rows; r++) {
+        tableHTML += "<tr>";
+        for (let c = 0; c < cols; c++) {
+          if (index < hash.length) {
+            const char = hash[index];
+            tableHTML += `<td class="matrix-cell" data-pair-index="${index}" data-table-id="${tableId}" style="background-color: ${getColorForHexDigit(char)};">${char}</td>`;
+          } else {
+            tableHTML += `<td class="matrix-cell"></td>`;
+          }
+          index++;
+        }
+        tableHTML += "</tr>";
+      }
+      tableHTML += "</table>";
+      return tableHTML;
+    }
+    function calculateBitwiseDifference(hash1, hash2) {
+      let diff = 0;
+      const minLength = Math.min(hash1.length, hash2.length);
+      for (let i = 0; i < minLength; i++) {
+        if (hash1[i] !== hash2[i]) diff++;
+      }
+      diff += Math.abs(hash1.length - hash2.length);
+      return diff;
+    }
+    function getStringDiffHTML(str1, str2) {
+      const diffs = computeDiff(str1, str2);
+      return diffs.map(part => {
+        if (part.type === 'insert') {
+          return `<span class="diff-insert">+${part.value}</span>`;
+        } else if (part.type === 'delete') {
+          return `<span class="diff-delete">-${part.value}</span>`;
+        } else {
+          return part.value;
+        }
+      }).join('');
+    }
+    function computeDiff(a, b) {
+      const matrix = [];
+      const aLen = a.length, bLen = b.length;
+      for (let i = 0; i <= aLen; i++) { matrix[i] = [i]; }
+      for (let j = 0; j <= bLen; j++) { matrix[0][j] = j; }
+      for (let i = 1; i <= aLen; i++) {
+        for (let j = 1; j <= bLen; j++) {
+          matrix[i][j] = (a[i - 1] === b[j - 1])
+            ? matrix[i - 1][j - 1]
+            : Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + 1);
+        }
+      }
+      const diffs = [];
+      let i = aLen, j = bLen;
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+          diffs.unshift({ type: 'equal', value: a[i - 1] });
+          i--; j--;
+        } else if (j > 0 && (i === 0 || matrix[i][j - 1] < matrix[i - 1][j])) {
+          diffs.unshift({ type: 'insert', value: b[j - 1] });
+          j--;
+        } else if (i > 0 && (j === 0 || matrix[i][j - 1] >= matrix[i - 1][j])) {
+          diffs.unshift({ type: 'delete', value: a[i - 1] });
+          i--;
+        }
+      }
+      return diffs;
+    }
+    async function updateVertex(index) {
+      const inputEl = document.getElementById(`vertex-input-${index}`);
+      const dynamicHashEl = document.getElementById(`vertex-dynamic-hash-${index}`);
+      const tableContainer = document.getElementById(`vertex-hash-table-${index}`);
+      const value = inputEl.value.trim();
+      const algorithm = document.getElementById("hash-algo").value;
+      if (value !== "") {
+        try {
+          const hash = await computeHash(value, algorithm);
+          dynamicHashEl.style.display = "none";
+          dynamicHashEl.innerHTML = colorizeHash(hash);
+          tableContainer.innerHTML = createSquareMatrix(hash, `vertex-hash-table-${index}`);
+        } catch (error) {
+          dynamicHashEl.innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
+          tableContainer.innerHTML = "";
+        }
+      } else {
+        dynamicHashEl.style.display = "none";
+        dynamicHashEl.innerHTML = "";
+        tableContainer.innerHTML = "";
+      }
+      updateAllEdges();
+      updateMatches();
+    }
+    function updateAllVertices() {
+      updateVertex(0);
+      updateVertex(1);
+      updateVertex(2);
+    }
+    async function updateEdgeComparison(i, j) {
+      const edgeEl = document.getElementById(`edge-${i}-${j}`);
+      const input1 = document.getElementById(`vertex-input-${i}`).value.trim();
+      const input2 = document.getElementById(`vertex-input-${j}`).value.trim();
+      const algorithm = document.getElementById("hash-algo").value;
+      if (!input1 || !input2) {
+        edgeEl.innerHTML = `<em>Edge ${i+1}-${j+1}: awaiting both inputs</em>`;
+        return;
+      }
+      try {
+        const hash1 = await computeHash(input1, algorithm);
+        const hash2 = await computeHash(input2, algorithm);
+        const bitwiseDiff = calculateBitwiseDifference(hash1, hash2);
+        let stringDiffHTML = (input1 === input2 || hash1 === hash2)
+          ? "<em>Diff skipped due to collision (or identical inputs)</em>"
+          : getStringDiffHTML(input1, input2);
+        const collisionText = (hash1 === hash2) ? "<strong>Collision!</strong>" : "<strong>Unique</strong>";
+        edgeEl.innerHTML = `
+          <div><strong>Edge ${i+1}-${j+1}</strong></div>
+          <div>Avalanche Eff. Bitwise Diff: <span>${bitwiseDiff}</span></div>
+          <div>${collisionText}</div>
+          <div>Diff: ${stringDiffHTML}</div>
+        `;
+      } catch (error) {
+        edgeEl.innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
+      }
+    }
+    function updateAllEdges() {
+      updateEdgeComparison(0, 1);
+      updateEdgeComparison(1, 2);
+      updateEdgeComparison(2, 0);
+    }
+    function resetAll() {
+      for (let i = 0; i < 3; i++) {
+        document.getElementById(`vertex-input-${i}`).value = "";
+        document.getElementById(`vertex-dynamic-hash-${i}`).innerHTML = "";
+        document.getElementById(`vertex-dynamic-hash-${i}`).style.display = "none";
+        document.getElementById(`vertex-hash-table-${i}`).innerHTML = "";
+      }
+      ["edge-0-1", "edge-1-2", "edge-2-0"].forEach(id => {
+        document.getElementById(id).innerHTML = "";
+      });
+      clearOverlay();
+    }
+    function clearOverlay() {
+      const svg = document.getElementById("svg-overlay");
+      while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+    }
+    function drawLineBetween(cell1, cell2) {
+      const container = document.getElementById("triangle-container");
+      const svg = document.getElementById("svg-overlay");
+      const rect1 = cell1.getBoundingClientRect();
+      const rect2 = cell2.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const x1 = rect1.left + rect1.width / 2 - containerRect.left;
+      const y1 = rect1.top + rect1.height / 2 - containerRect.top;
+      const x2 = rect2.left + rect2.width / 2 - containerRect.left;
+      const y2 = rect2.top + rect2.height / 2 - containerRect.top;
+      const gradientId = `gradient-${Math.random().toString(36).substr(2, 9)}`;
+      let defs = svg.querySelector("defs");
+      if (!defs) {
+        defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+        svg.appendChild(defs);
+      }
+      const linearGradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+      linearGradient.setAttribute("id", gradientId);
+      linearGradient.setAttribute("gradientUnits", "userSpaceOnUse");
+      linearGradient.setAttribute("x1", x1);
+      linearGradient.setAttribute("y1", y1);
+      linearGradient.setAttribute("x2", x2);
+      linearGradient.setAttribute("y2", y2);
+      const stop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+      stop1.setAttribute("offset", "0%");
+      stop1.setAttribute("stop-color", "#345d7b");
+      const stop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+      stop2.setAttribute("offset", "100%");
+      stop2.setAttribute("stop-color", "#7da3c2");
+      linearGradient.appendChild(stop1);
+      linearGradient.appendChild(stop2);
+      defs.appendChild(linearGradient);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+      line.setAttribute("stroke", `url(#${gradientId})`);
+      line.setAttribute("stroke-width", "0.35");
+      line.setAttribute("stroke-dasharray", "4,2");
+      svg.appendChild(line);
+    }
+    function updateMatches() {
+      clearOverlay();
+      const cells = document.querySelectorAll('.hash-table td.matrix-cell');
+      const groups = {};
+      cells.forEach(cell => {
+        const index = cell.getAttribute('data-pair-index');
+        if (!groups[index]) groups[index] = [];
+        groups[index].push(cell);
+      });
+      Object.values(groups).forEach(group => {
+        const subgroups = {};
+        group.forEach(cell => {
+          const val = cell.textContent.trim();
+          if (!subgroups[val]) subgroups[val] = [];
+          subgroups[val].push(cell);
+        });
+        Object.values(subgroups).forEach(subgroup => {
+          if (subgroup.length > 1 && subgroup[0]?.textContent.trim() !== "") {
+            subgroup.forEach(cell => { cell.style.backgroundColor = "#32CD32"; });
+            const MAX_LINES = 20;
+            const n = subgroup.length;
+            const possibleLines = (n * (n - 1)) / 2;
+            if (possibleLines <= MAX_LINES) {
+              for (let i = 0; i < n; i++) {
+                for (let j = i + 1; j < n; j++) {
+                  drawLineBetween(subgroup[i], subgroup[j]);
+                }
+              }
+            }
+          } else {
+            subgroup.forEach(cell => {
+              if (cell.textContent.trim() !== "") {
+                cell.style.backgroundColor = getColorForHexDigit(cell.textContent.trim());
+              }
+            });
+          }
+        });
+      });
+    }
+    const cursor = document.querySelector(".cursor");
+    document.addEventListener("mousemove", (e) => {
+      cursor.style.top = `${e.clientY}px`;
+      cursor.style.left = `${e.clientX}px`;
+      const tail = document.createElement("div");
+      tail.classList.add("mouse-tail");
+      tail.style.top = `${e.clientY}px`;
+      tail.style.left = `${e.clientX}px`;
+      document.body.appendChild(tail);
+      setTimeout(() => { tail.remove(); }, 500);
+    });
+    document.querySelectorAll("button, p, img").forEach(el => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+    });
+    document.querySelectorAll("button").forEach(button => {
+      button.addEventListener("click", (e) => {
+        button.classList.add("clicked");
+        setTimeout(() => { button.classList.remove("clicked"); }, 400);
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+        ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+        ripple.classList.add("ripple");
+        button.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      });
+    });
+    document.addEventListener("click", (e) => {
+      const numberOfImpulses = 2;
+      const impulseInterval = 90;
+      for (let i = 0; i < numberOfImpulses; i++) {
+        setTimeout(() => {
+          const impulse = document.createElement("span");
+          impulse.className = "cursor-impulse";
+          impulse.style.left = `${e.clientX}px`;
+          impulse.style.top = `${e.clientY}px`;
+          document.body.appendChild(impulse);
+          impulse.addEventListener("animationend", () => impulse.remove());
+        }, i * impulseInterval);
+      }
+    });
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById("svg-container").innerHTML = data;
+        })
+        .catch(error => console.error("Error loading SVG:", error));
+    });
+    document.addEventListener("mouseover", (event) => {
+      const cell = event.target.closest(".matrix-cell");
+      if (!cell) return;
+      const pairIndex = cell.getAttribute("data-pair-index");
+      if (pairIndex !== null) {
+        const matchingCells = document.querySelectorAll(`.matrix-cell[data-pair-index="${pairIndex}"]`);
+        matchingCells.forEach(matchingCell => matchingCell.classList.add("hover-highlight"));
+      }
+    });
+    document.addEventListener("mouseout", (event) => {
+      const cell = event.target.closest(".matrix-cell");
+      if (!cell) return;
+      const pairIndex = cell.getAttribute("data-pair-index");
+      if (pairIndex !== null) {
+        const matchingCells = document.querySelectorAll(`.matrix-cell[data-pair-index="${pairIndex}"]`);
+        matchingCells.forEach(matchingCell => matchingCell.classList.remove("hover-highlight"));
+      }
+    });
+  </script>
+</body>
+</html>

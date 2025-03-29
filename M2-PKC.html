@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Multi-User Messaging with Animation (Draggable Modals)</title>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #faf4e8;
+      --text-color: #345d7b;
+      --cursor-color: #345d7b;
+      --header-color: linear-gradient(135deg, #345d7b, #6f90a8);
+      --button-border: #345d7b;
+      --input-border: #ccc;
+      --dynamic-hash-bg: #f1f1f1;
+      --dynamic-hash-color: #333;
+      --edge-bg: #f1f1f1a8;
+      --edge-border: #ccc;
+      --ambient-shadow-light: rgba(0, 0, 0, 0.1);
+      --ambient-shadow-dark: rgba(0, 0, 0, 0.7);
+    }
+    * {
+      font-family: "Teachers", serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      cursor: none !important;
+    }
+    html, body {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    .cursor {
+      z-index: 10009;
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 30px var(--cursor-color),
+                  0 0 40px var(--cursor-color), 0 0 50px var(--cursor-color);
+    }
+    .cursor:before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: var(--cursor-color);
+      opacity: 0.2;
+      transform: translate(-25%, -25%);
+      border-radius: 50%;
+    }
+    .cursor.hover {
+      transform: scale(2);
+      background-color: var(--bg-color);
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 40px var(--cursor-color);
+    }
+    .mouse-tail {
+      z-index: 10009;
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: rgba(52,93,123, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: fadeTail 1s forwards;
+    }
+    @keyframes fadeTail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.5); }
+    }
+    #global-settings, .div-wrapper { z-index: 9999; }
+    input, button, select {
+      padding: 10px;
+      margin: 10px 0;
+      max-width: 15rem;
+      background: transparent;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: var(--text-color);
+    }
+    button {
+      border: 1px solid var(--button-border);
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+    #triangle-container {
+      position: relative;
+      width: 100vw;
+      margin: 20px auto;
+    }
+    #svg-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .vertex {
+      position: absolute;
+      width: 28%;
+      background: transparent;
+      padding: 10px;
+    }
+    #vertex-0 { top: 5%; left: 60%; transform: translate(-50%, 0); }
+    #vertex-1 { bottom: 5%; left: 5%; }
+    #vertex-2 { bottom: 5%; right: 15%; }
+    .vertex-inner {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .input-container { flex: 1; }
+    .hash-table-container { z-index: 1; flex-shrink: 0; max-width: 40%; }
+    svg { width: 100px; height: 100px; }
+    .dynamic-hash {
+      display: none;
+      font-size: 14px;
+      word-break: break-all;
+      background: var(--dynamic-hash-bg);
+      padding: 10px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      min-height: 50px;
+      color: var(--dynamic-hash-color);
+      font-family: 'Courier New', Courier, monospace;
+      margin-top: 10px;
+    }
+    .hash-table {
+      font-family: 'Courier New', Courier, monospace;
+      margin: 10px auto;
+      border-collapse: collapse;
+    }
+    .hash-table th, .hash-table td {
+      border: 2px solid #ffffff;
+      padding: 4px;
+      text-align: center;
+      min-width: 16px;
+      min-height: 16px;
+    }
+    .matrix-cell {
+      color: white;
+      position: relative;
+      box-shadow: 0 2px 4px var(--ambient-shadow-light);
+    }
+    .matrix-cell.hover-highlight {
+      box-shadow: 0 0 8px 2px rgba(52,93,123,0.5), 0 4px 8px rgba(0,0,0,0.2);
+      filter: brightness(1.2);
+      transform: scale(1.03);
+      transition: all 0.2s ease;
+      z-index: 2;
+    }
+    .hash-table span {
+      position: relative;
+      transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+    .hash-table span::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 2px;
+      opacity: 0;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      z-index: -1;
+      transition: opacity 0.3s ease;
+    }
+    .hash-table span:hover::after { opacity: 1; }
+    #svg-container {
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
+    .user-icon svg {
+      max-width: 40px;
+      margin: 0 5px;
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
+    .edge {
+      overflow: auto;
+      backdrop-filter: blur(20px);
+      z-index: 999;
+      position: absolute;
+      background-color: var(--edge-bg);
+      padding: 5px 10px;
+      border: 1px solid var(--edge-border);
+      border-radius: 6px;
+      font-size: 20px;
+      text-align: center;
+      max-height: 200px;
+      max-width: 300px;
+    }
+    #edge-0-1 { left: 20%; top: 10%; }
+    #edge-1-2 { left: 45%; bottom: 10%; }
+    #edge-2-0 { right: 10%; top: 10%; }
+    .diff-insert {
+      background-color: #d4fcbc;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .diff-delete {
+      background-color: #fbb6c2;
+      padding: 2px 4px;
+      border-radius: 3px;
+      text-decoration: line-through;
+    }
+    .ripple {
+      position: absolute;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      transform: scale(0);
+      animation: rippleEffect 0.6s linear;
+      pointer-events: none;
+      z-index: 12000;
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+    }
+    @keyframes rippleEffect {
+      from { transform: scale(0); opacity: 0.8; }
+      to { transform: scale(5); opacity: 0; }
+    }
+    .cursor-impulse {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      opacity: 0.05;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: cursorImpulse 1s ease-out forwards;
+    }
+    @keyframes cursorImpulse {
+      0% { transform: scale(0); opacity: 0.1; }
+      100% { transform: scale(25); opacity: 0; }
+    }
+    .user-management {
+      height: 95%;
+      max-width: 20rem;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 8000;
+      background: var(--bg-color);
+      padding: 10px 15px;
+      border: 2px solid var(--button-border);
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    #modalContainer {
+      height: 100rem;
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      padding: 20px;
+      overflow-x: auto;
+      justify-content: center;
+      align-items: flex-start;
+      position: relative;
+    }
+    .modal-window {
+      flex: auto;
+      max-width: 800px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      border: 2px solid var(--button-border);
+      border-radius: 8px;
+      box-shadow: 0 30px 60px #345d7b;
+      z-index: 10000;
+      margin: 10px;
+    }
+    .modal-header {
+      height: 80px;
+      padding: 0 10px;
+      background-color: var(--cursor-color);
+      color: var(--bg-color);
+      font-weight: bold;
+      font-size: 17px;
+      display: flex;
+      align-items: center;
+      text-align: right;
+      cursor: move;
+    }
+    .btn-header {
+      margin-left: auto;
+      margin-right: 0;
+    }
+    .modal-header button {
+      width: 1rem;
+      background: transparent;
+      border: none;
+      color: var(--bg-color);
+      cursor: pointer;
+    }
+    .modal-content {
+      display: flex;
+      flex-direction: row;
+      z-index: 10000;
+      padding: 15px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .modal-content .compose-section,
+    .modal-content .section-title,
+    .modal-content .message-container,
+    .modal-content .button-group { margin: 5px; }
+    .message-container {
+      padding: 0.7rem;
+      background: linear-gradient(135deg, #d6eeff8f, #8eaec55b);
+      border-radius: 10px;
+      align-items: center;
+      text-align: center;
+      font-weight: bold;
+      color: #345d7b;
+      border: 1px solid var(--input-border);
+    }
+    .modal-content textarea {
+      width: 90%;
+      height: 60px;
+      resize: none;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      padding: 5px;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+    .modal-content select { width: auto; }
+    .modal-content button { margin-right: 5px; }
+    .encryption-layer {
+      margin: 0 auto;
+      border-radius: 50% !important;
+      padding: 4px;
+      background: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .encryption-layer > .base-balloon { text-align: center; border-radius: 50%; }
+    .base-balloon { margin: 0 auto; }
+    .encryption-layer .layer-label {
+      position: absolute;
+      bottom: -20px;
+      background: var(--bg-color);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--text-color);
+    }
+    #systemTray {
+      width: 100%;
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 10000;
+      justify-content: flex-end;
+    }
+    .tray-item {
+      background: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--button-border);
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="cursor"></div>
+  <div class="user-management">
+    <div id="svg-container" style="display: flex; flex-direction: row;"></div>
+    <h1>Multi-user Public-Key & Symmetric Cryptography Communication Visualizer</h1>
+    <p>
+      When a new user is added, the system automatically generates a unique pair of cryptographic keys—a public key and a private key. All users share the same symmetric key used for both encryption and decryption.
+    </p>
+    <input type="text" id="newUserName" placeholder="Enter new user name">
+    <button id="addUser">Add User</button>
+    <div id="userList"><strong>Current Users:</strong></div>
+  </div>
+  <div id="modalContainer"></div>
+  <div id="systemTray"></div>
+  <script>
+    const cursor = document.querySelector(".cursor");
+    document.addEventListener("mousemove", (e) => {
+      cursor.style.top = `${e.clientY}px`;
+      cursor.style.left = `${e.clientX}px`;
+      const tail = document.createElement("div");
+      tail.classList.add("mouse-tail");
+      tail.style.top = `${e.clientY}px`;
+      tail.style.left = `${e.clientX}px`;
+      document.body.appendChild(tail);
+      setTimeout(() => { tail.remove(); }, 500);
+    });
+    document.querySelectorAll("button, p, img").forEach(el => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+    });
+    document.querySelectorAll("button").forEach(button => {
+      button.addEventListener("click", (e) => {
+        button.classList.add("clicked");
+        setTimeout(() => { button.classList.remove("clicked"); }, 400);
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+        ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+        ripple.classList.add("ripple");
+        button.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      });
+    });
+    document.addEventListener("click", (e) => {
+      const impulses = 2, interval = 90;
+      for (let i = 0; i < impulses; i++) {
+        setTimeout(() => {
+          const impulse = document.createElement("span");
+          impulse.className = "cursor-impulse";
+          impulse.style.left = `${e.clientX}px`;
+          impulse.style.top = `${e.clientY}px`;
+          document.body.appendChild(impulse);
+          impulse.addEventListener("animationend", () => impulse.remove());
+        }, i * interval);
+      }
+    });
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => { document.getElementById("svg-container").innerHTML = data; })
+        .catch(error => console.error("Error loading SVG:", error));
+    });
+    let users = [], outgoingBalloon = {}, incomingBalloon = {}, modals = {};
+    const symmetricKey = "symmetric", baseSize = 100, increment = 40;
+    function createBaseBalloon(message) {
+      const div = document.createElement("div");
+      div.classList.add("base-balloon");
+      div.style.width  = baseSize + "px";
+      div.style.height = baseSize + "px";
+      div.dataset.message = message;
+      div.innerText = message;
+      div.dataset.layerCount = 0;
+      return div;
+    }
+    function wrapBalloon(balloon, encryptionType) {
+      let currentCount = parseInt(balloon.dataset.layerCount) || 0;
+      const newCount = currentCount + 1, newSize = baseSize + newCount * increment;
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("encryption-layer");
+      wrapper.setAttribute("data-key", encryptionType);
+      wrapper.dataset.layerCount = newCount;
+      if (balloon.dataset.sender) wrapper.dataset.sender = balloon.dataset.sender;
+      if (balloon.dataset.recipient) wrapper.dataset.recipient = balloon.dataset.recipient;
+      wrapper.style.width  = newSize + "px";
+      wrapper.style.height = newSize + "px";
+      const details = getEncryptionDetails(encryptionType);
+      wrapper.style.border = "4px solid " + details.color;
+      wrapper.style.display = "flex";
+      wrapper.style.alignItems = "center";
+      wrapper.style.justifyContent = "center";
+      wrapper.style.position = "relative";
+      const label = document.createElement("div");
+      label.classList.add("layer-label");
+      label.innerText = details.label;
+      label.style.color = details.color;
+      let baseBalloon = balloon.classList.contains("base-balloon") ? balloon : balloon.querySelector(".base-balloon");
+      if (baseBalloon) baseBalloon.innerText = "****";
+      wrapper.appendChild(balloon);
+      wrapper.appendChild(label);
+      return wrapper;
+    }
+    function getComplementKey(key) {
+      if (key === "symmetric") return "symmetric";
+      const parts = key.split("-");
+      if (parts.length < 2) return key;
+      const user = parts[0], keyType = parts[1];
+      const complement = (keyType === "public") ? "private" : (keyType === "private" ? "public" : keyType);
+      return user + "-" + complement;
+    }
+    function removeEncryptionLayer(balloon, providedKey) {
+      if (balloon.classList.contains("encryption-layer")) {
+        const actualType = balloon.getAttribute("data-key");
+        const expectedDecryptionKey = getComplementKey(actualType);
+        if (providedKey === expectedDecryptionKey) return balloon.firstElementChild;
+        else { alert("Incorrect decryption key!\nExpected: " + getEncryptionDetails(expectedDecryptionKey).label + "\nFound: " + getEncryptionDetails(providedKey).label); return balloon; }
+      } else { alert("No encryption layer to remove!"); return balloon; }
+    }
+    function getEncryptionDetails(encType) {
+      if (encType === "symmetric") return { label: "Symmetric Key", color: "purple" };
+      const parts = encType.split("-"), user = parts[0], keyType = parts[1];
+      let label = "", color = "";
+      if (keyType === "private") { label = user + "'s Private Key"; color = "orange"; }
+      else if (keyType === "public") { label = user + "'s Public Key"; color = "#61c7ee"; }
+      else { label = encType; color = "gray"; }
+      return { label, color };
+    }
+    function updateUserList() {
+      const userListDiv = document.getElementById("userList");
+      userListDiv.innerHTML = "<strong>Current Users:</strong> " + users.join(", ");
+      updateAllModals();
+    }
+    function updateAllModals() {
+      users.forEach((user, index) => {
+        if (!modals[user]) createUserModal(user, index);
+        else { updateComposeDropdown(user); updateEncryptionDropdown(user); updateDecryptionDropdown(user); }
+      });
+    }
+    function createUserModal(user, index) {
+      const modal = document.createElement("div");
+      modal.className = "modal-window";
+      modal.id = "modal-" + user;
+      modal.style.top = (50 + index * 30) + "px";
+      modal.style.left = (260 + index * 40) + "px";
+      const header = document.createElement("div");
+      header.className = "modal-header";
+      const imgContainer = document.createElement("div");
+      imgContainer.className = "user-icon";
+      header.appendChild(imgContainer);
+      fetch("user.svg")
+        .then(response => response.text())
+        .then(data => { imgContainer.innerHTML = data; })
+        .catch(error => console.error("Error loading SVG:", error));
+      const titleSpan = document.createElement("span");
+      titleSpan.className = "modal-title";
+      titleSpan.innerText = user;
+      header.appendChild(titleSpan);
+      const btnHeader = document.createElement("div");
+      btnHeader.className = "btn-header";
+      const minBtn = document.createElement("button");
+      minBtn.className = "minimize";
+      minBtn.innerText = "_";
+      minBtn.title = "Minimize";
+      minBtn.onclick = function(e) { e.stopPropagation(); minimizeModal(user); };
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "close";
+      closeBtn.innerText = "X";
+      closeBtn.title = "Close";
+      closeBtn.onclick = function(e) { e.stopPropagation(); closeModal(user); };
+      btnHeader.appendChild(minBtn);
+      btnHeader.appendChild(closeBtn);
+      header.appendChild(btnHeader);
+      const content = document.createElement("div");
+      content.className = "modal-content";
+      content.innerHTML = `
+          <div class="compose-section">
+            <textarea class="compose-text" placeholder="Enter your message"></textarea>
+            <label>Send To:</label>
+            <select class="recipient-dropdown" data-user="${user}"></select>
+            <button class="compose-button" data-user="${user}">Compose Message</button>
+          </div>
+          <div class="button-group outgoing-buttons" id="outgoing-buttons-${user}">
+            <div class="section-title">Outgoing Message</div>
+            <div class="message-container" id="outgoing-${user}"></div>
+            <select class="encryption-dropdown" data-user="${user}"></select>
+            <button class="encrypt-button" data-user="${user}">Encrypt</button>
+            <button class="send-message" data-user="${user}">Send Message</button>
+          </div>
+          <div class="button-group incoming-buttons" id="incoming-buttons-${user}">
+            <div class="section-title">Incoming Message</div>
+            <div class="message-container" id="incoming-${user}"></div>
+            <select class="decryption-dropdown" data-user="${user}"></select>
+            <button class="decrypt-button" data-user="${user}">Decrypt</button>
+            <button class="reset-message" data-user="${user}">Reset Message</button>
+          </div>
+      `;
+      modal.innerHTML = "";
+      modal.appendChild(header);
+      modal.appendChild(content);
+      document.getElementById("modalContainer").appendChild(modal);
+      modals[user] = modal;
+      $(modal).draggable({ handle: ".modal-header", containment: "window" })
+              .resizable({ containment: "window", minHeight: 400, minWidth: 320 });
+      attachPanelEventListeners(modal);
+      updateComposeDropdown(user);
+      updateEncryptionDropdown(user);
+      updateDecryptionDropdown(user);
+    }
+    function updateComposeDropdown(user) {
+      const modal = modals[user];
+      if (!modal) return;
+      const select = modal.querySelector(`.recipient-dropdown`);
+      if (!select) return;
+      select.innerHTML = "";
+      users.filter(u => u !== user).forEach(u => {
+        const option = document.createElement("option");
+        option.value = u;
+        option.text = u;
+        select.appendChild(option);
+      });
+    }
+    function updateAllDropdowns() { users.forEach(user => { updateEncryptionDropdown(user); updateDecryptionDropdown(user); }); }
+    function updateEncryptionDropdown(user) {
+      const modal = modals[user];
+      if (!modal) return;
+      const select = modal.querySelector(`.encryption-dropdown`);
+      if (!select) return;
+      select.innerHTML = "";
+      const option1 = document.createElement("option");
+      option1.value = user + "-private";
+      option1.text = "Sign with My Private Key";
+      select.appendChild(option1);
+      const option2 = document.createElement("option");
+      option2.value = user + "-public";
+      option2.text = "Encrypt with My Public Key";
+      select.appendChild(option2);
+      const optionSym = document.createElement("option");
+      optionSym.value = "symmetric";
+      optionSym.text = "Encrypt with Symmetric Key";
+      select.appendChild(optionSym);
+      const balloon = outgoingBalloon[user];
+      if (balloon && balloon.dataset.recipient) {
+        const recipient = balloon.dataset.recipient;
+        const optRecip = document.createElement("option");
+        optRecip.value = recipient + "-public";
+        optRecip.text = "Encrypt with " + recipient + "'s Public Key";
+        select.appendChild(optRecip);
+      }
+      users.forEach(u => {
+        if (u !== user) {
+          if (balloon && balloon.dataset.recipient === u) return;
+          const opt = document.createElement("option");
+          opt.value = u + "-public";
+          opt.text = "Encrypt with " + u + "'s Public Key";
+          select.appendChild(opt);
+        }
+      });
+    }
+    function updateDecryptionDropdown(user) {
+      const modal = modals[user];
+      if (!modal) return;
+      const select = modal.querySelector(`.decryption-dropdown`);
+      if (!select) return;
+      select.innerHTML = "";
+      const opt1 = document.createElement("option");
+      opt1.value = user + "-private";
+      opt1.text = "Decrypt with My Private Key";
+      select.appendChild(opt1);
+      const opt2 = document.createElement("option");
+      opt2.value = user + "-public";
+      opt2.text = "Decrypt with My Public Key";
+      select.appendChild(opt2);
+      const optionSym = document.createElement("option");
+      optionSym.value = "symmetric";
+      optionSym.text = "Decrypt with Symmetric Key";
+      select.appendChild(optionSym);
+      const inBalloon = incomingBalloon[user];
+      if (inBalloon && inBalloon.classList.contains("encryption-layer") &&
+          inBalloon.dataset.sender && inBalloon.dataset.sender !== user) {
+        const outerKey = inBalloon.getAttribute("data-key");
+        if (outerKey.endsWith("private")) {
+          const opt3 = document.createElement("option");
+          opt3.value = inBalloon.dataset.sender + "-public";
+          opt3.text = "Decrypt with " + inBalloon.dataset.sender + "'s Public Key";
+          select.appendChild(opt3);
+        }
+      }
+    }
+    function attachPanelEventListeners(modal) {
+      modal.querySelectorAll(".compose-button").forEach(btn => {
+        btn.onclick = function() {
+          const user = this.getAttribute("data-user");
+          const panel = modal;
+          const messageText = panel.querySelector(".compose-text").value.trim();
+          const recipient = panel.querySelector(".recipient-dropdown").value;
+          if (!messageText) { alert("Please enter a message."); return; }
+          const balloon = createBaseBalloon(messageText);
+          balloon.dataset.sender = user;
+          balloon.dataset.recipient = recipient;
+          outgoingBalloon[user] = balloon;
+          panel.querySelector("#outgoing-" + user).innerHTML = "";
+          panel.querySelector("#outgoing-" + user).appendChild(balloon);
+          panel.querySelector(".compose-text").value = "";
+          updateEncryptionDropdown(user);
+        };
+      });
+      modal.querySelectorAll(".encrypt-button").forEach(btn => {
+        btn.onclick = function() {
+          const user = this.getAttribute("data-user");
+          let balloon = outgoingBalloon[user];
+          if (!balloon) { alert("Compose a message first."); return; }
+          const encType = modal.querySelector(`.encryption-dropdown`).value;
+          outgoingBalloon[user] = wrapBalloon(balloon, encType);
+          modal.querySelector("#outgoing-" + user).innerHTML = "";
+          modal.querySelector("#outgoing-" + user).appendChild(outgoingBalloon[user]);
+          updateEncryptionDropdown(user);
+        };
+      });
+      modal.querySelectorAll(".send-message").forEach(btn => {
+        btn.onclick = function() {
+          const user = this.getAttribute("data-user");
+          let balloon = outgoingBalloon[user];
+          if (!balloon) return;
+          const recipient = balloon.dataset.recipient;
+          if (!recipient) { alert("No recipient specified."); return; }
+          const $balloon = $(balloon);
+          let startPos = $balloon.offset();
+          $balloon.css({ position: 'absolute', top: startPos.top, left: startPos.left, zIndex: 10000 }).appendTo('body');
+          const recipientModal = modals[recipient];
+          if (!recipientModal) { alert("Recipient modal not found."); return; }
+          const $recipientContainer = $(recipientModal).find("#incoming-" + recipient);
+          let endPos = $recipientContainer.offset();
+          let containerWidth = $recipientContainer.outerWidth(), containerHeight = $recipientContainer.outerHeight();
+          let balloonWidth = $balloon.outerWidth(), balloonHeight = $balloon.outerHeight();
+          endPos.top = endPos.top + (containerHeight - balloonHeight) / 2;
+          endPos.left = endPos.left + (containerWidth - balloonWidth) / 2;
+          $balloon.animate({ top: endPos.top, left: endPos.left, opacity: 0.5 }, 1000, function() {
+            outgoingBalloon[user] = null;
+            incomingBalloon[recipient] = balloon;
+            $balloon.detach();
+            $balloon.css({ position: '', top: '', left: '', zIndex: '', opacity: 1 });
+            $(recipientModal).find("#incoming-" + recipient).html("").append(balloon);
+            updateDecryptionDropdown(recipient);
+          });
+        };
+      });
+      modal.querySelectorAll(".decrypt-button").forEach(btn => {
+        btn.onclick = function() {
+          const user = this.getAttribute("data-user");
+          let balloon = incomingBalloon[user];
+          if (!balloon) return;
+          const decryptionKey = modal.querySelector(`.decryption-dropdown`).value;
+          incomingBalloon[user] = removeEncryptionLayer(balloon, decryptionKey);
+          modal.querySelector("#incoming-" + user).innerHTML = "";
+          modal.querySelector("#incoming-" + user).appendChild(incomingBalloon[user]);
+          checkDecryptionComplete(user);
+          updateDecryptionDropdown(user);
+        };
+      });
+      modal.querySelectorAll(".reset-message").forEach(btn => {
+        btn.onclick = function() {
+          const user = this.getAttribute("data-user");
+          incomingBalloon[user] = null;
+          modal.querySelector("#incoming-" + user).innerHTML = "";
+          updateDecryptionDropdown(user);
+        };
+      });
+    }
+    function checkDecryptionComplete(user) {
+      const balloon = incomingBalloon[user];
+      if (balloon && !balloon.classList.contains("encryption-layer")) {
+        if (balloon.classList.contains("base-balloon")) balloon.innerText = balloon.dataset.message;
+        alert("Decryption complete for " + user + ". Message: " + balloon.innerText);
+      }
+    }
+    function minimizeModal(user) {
+      const modal = modals[user];
+      if (!modal) return;
+      modal.style.display = "none";
+      addToSystemTray(user);
+    }
+    function closeModal(user) {
+      if (confirm("Close " + user + "'s panel?")) {
+        const modal = modals[user];
+        if (modal) { modal.remove(); delete modals[user]; }
+        users = users.filter(u => u !== user);
+        updateUserList();
+        removeFromSystemTray(user);
+      }
+    }
+    function addToSystemTray(user) {
+      const tray = document.getElementById("systemTray");
+      if (tray.querySelector(`[data-user="${user}"]`)) return;
+      const item = document.createElement("div");
+      item.className = "tray-item";
+      item.dataset.user = user;
+      item.innerText = user;
+      item.title = "Click to restore " + user + "'s panel";
+      item.onclick = function() { restoreModal(user); };
+      tray.appendChild(item);
+    }
+    function removeFromSystemTray(user) {
+      const tray = document.getElementById("systemTray");
+      const item = tray.querySelector(`[data-user="${user}"]`);
+      if (item) item.remove();
+    }
+    function restoreModal(user) {
+      const modal = modals[user];
+      if (modal) { modal.style.display = "block"; removeFromSystemTray(user); }
+    }
+    document.getElementById('addUser').addEventListener('click', function(){
+      const newUser = document.getElementById('newUserName').value.trim();
+      if (newUser === "") { alert("Enter a valid user name"); return; }
+      if (users.includes(newUser)) { alert("User already exists!"); return; }
+      users.push(newUser);
+      document.getElementById('newUserName').value = "";
+      updateUserList();
+    });
+  </script>
+</body>
+</html>

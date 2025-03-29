@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Proof of Stake Visualizer with Wallets</title>
+  <!-- jQuery and jQuery UI for custom cursor ripple effects (if desired) -->
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <style>
+    /* Global Variables */
+    :root {
+      --bg-color: #faf4e8;
+      --text-color: #345d7b;
+      --cursor-color: #345d7b;
+      --button-border: #345d7b;
+      --input-border: #ccc;
+      --dynamic-hash-bg: #f1f1f1;
+      --dynamic-hash-color: #333;
+      --edge-bg: #f1f1f1a8;
+      --edge-border: #ccc;
+      --ambient-shadow-light: rgba(0, 0, 0, 0.1);
+      --ambient-shadow-dark: rgba(0, 0, 0, 0.7);
+    }
+    /* Global Reset & Base Styles */
+    * {
+      font-family: "Teachers", serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      cursor: none !important;
+    }
+    html, body {
+      height: 100%;
+      overflow: auto;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      text-align: center;
+    }
+    /* Toggle Button (if needed later) */
+    #toggle-dark-mode {
+      display: none;
+    }
+    /* Left Menu: Block Simulation Controls */
+    .left-menu {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 20rem;
+      height: 95%;
+      background: var(--bg-color);
+      padding: 15px;
+      border: 2px solid var(--button-border);
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      z-index: 8000;
+      text-align: left;
+    }
+    .left-menu h1 {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+    }
+    .left-menu p {
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
+    .left-menu input,
+    .left-menu button {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-color);
+    }
+    /* Logo Container & Details (positioned at top of main content) */
+    #logo-container {
+      position: fixed;
+      top: 20px;
+      left: 240px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10000;
+    }
+    #logo-container svg {
+      width: 50px;
+      height: 50px;
+    }
+    #logo-details {
+      position: fixed;
+      top: 20px;
+      left: 300px;
+      text-align: left;
+      font-size: 0.9em;
+      z-index: 10000;
+    }
+    /* Main Content: Everything on right side */
+    #mainContent {
+      margin-left: 25rem;
+      padding-top: 80px;
+    }
+    /* Main Layout: Validators and Bar Chart */
+    #mainContainer {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+    /* Validators Section */
+    .validators-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .validator {
+      border-radius: 50%;
+      background: var(--cursor-color);
+      color: var(--bg-color);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.5s, background 0.5s;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .validator.highlight {
+      background: var(--button-border);
+      transform: scale(1.1);
+    }
+    .validator .info {
+      font-size: 0.8em;
+      margin-top: 5px;
+    }
+    /* Bar Chart Section */
+    #barChartContainer {
+      width: 200px;
+      text-align: left;
+    }
+    .bar-label {
+      margin-bottom: 3px;
+      font-size: 0.9em;
+    }
+    .bar {
+      background: var(--button-border);
+      height: 20px;
+      margin: 5px 0;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    /* Blockchain Container: horizontal layout with auto overflow */
+    .blockchain-container {
+      margin-top: 40px;
+      max-height: 300px;
+      overflow-y: auto;
+      overflow-x: auto;
+      white-space: nowrap;
+      border: none;
+      padding: 10px;
+      display: flex;
+      gap: 20px;
+    }
+    .block {
+      width: 140px;
+      min-height: 80px;
+      background: var(--dynamic-hash-bg);
+      border: 2px solid var(--button-border);
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      opacity: 0;
+      animation: fadeIn 1s forwards;
+      display: inline-block;
+      position: relative;
+    }
+    /* Arrow styling: For every block except the first, add a pointy arrow on the left */
+    .block:not(:first-child)::before {
+      content: "";
+      position: absolute;
+      left: -35px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-top: 12px solid transparent;
+      border-bottom: 12px solid transparent;
+      border-right: 20px solid var(--button-border);
+    }
+    @keyframes fadeIn { to { opacity: 1; } }
+    /* Simulation Controls (within main content, if needed) */
+    #addBlockBtn, #simulateMultipleBtn {
+      padding: 10px 20px;
+      font-size: 1em;
+      background: var(--button-border);
+      color: var(--bg-color);
+      border: 1px solid var(--button-border);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 20px;
+    }
+    #addBlockBtn:hover, #simulateMultipleBtn:hover { opacity: 0.9; }
+    #multipleBlocksContainer {
+      margin-top: 20px;
+    }
+    #blockCountInput {
+      padding: 5px;
+      width: 80px;
+      margin-right: 10px;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-color);
+    }
+    /* Custom Cursor & Effects */
+    .cursor {
+      z-index: 10009;
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 30px var(--cursor-color), 0 0 40px var(--cursor-color), 0 0 50px var(--cursor-color);
+    }
+    .cursor:before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: var(--cursor-color);
+      opacity: 0.2;
+      transform: translate(-25%, -25%);
+      border-radius: 50%;
+    }
+    .cursor.hover {
+      transform: scale(2);
+      background-color: var(--bg-color);
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 40px var(--cursor-color);
+    }
+    .mouse-tail {
+      z-index: 10009;
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: rgba(52,93,123, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: fadeTail 1s forwards;
+    }
+    @keyframes fadeTail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.5); }
+    }
+    .ripple {
+      position: absolute;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      transform: scale(0);
+      animation: rippleEffect 0.6s linear;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+    }
+    @keyframes rippleEffect {
+      from { transform: scale(0); opacity: 0.8; }
+      to { transform: scale(5); opacity: 0; }
+    }
+    .cursor-impulse {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      opacity: 0.05;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: cursorImpulse 1s ease-out forwards;
+    }
+    @keyframes cursorImpulse {
+      0% { transform: scale(0); opacity: 0.1; }
+      100% { transform: scale(25); opacity: 0; }
+    }
+    svg {
+    width: 100px;
+    height: 100px;
+  }
+#svg-container {
+background: none;
+transition: 0.7s all ease-in-out;
+}
+  </style>
+</head>
+<body>
+  <!-- Toggle button is hidden (no dark theme) -->
+  
+  <!-- Left Menu: Block Simulation Controls -->
+  <div class="left-menu">
+    <div id="svg-container" style="display: flex; flex-direction: row;"></div>
+    <h1>Proof-of-Stake (PoS) Visualizer</h1>
+    <p>
+      Use these controls to simulate blockchain activity. Click "Add Block" to add a single block, or specify a number and click "Simulate Blocks" to add multiple blocks sequentially. Validators are selected based on their stake and staking time.
+    </p>
+    <button id="addBlockBtn">Add Block</button>
+    <div id="multipleBlocksContainer">
+      <input style="width: 100%;" type="number" id="blockCountInput" placeholder="Number of blocks" min="1">
+      <button id="simulateMultipleBtn">Simulate Blocks</button>
+    </div>
+  </div>
+  
+  <!-- Main Content: Everything on the right side -->
+  <div id="mainContent">
+    <!-- Main Container: Validators and Bar Chart -->
+    <div id="mainContainer">
+      <!-- Validators Section -->
+      <div class="validators-container">
+        <div class="validator" id="validator-0" data-name="Alice" data-coins="50" data-time="120" data-wallet="150">
+          <strong>Alice</strong>
+          <div class="info">
+            Stake: 50 BKS<br>
+            Time: 120 sec<br>
+            Wallet: 150 BKS<br>
+            Chosen: 0 times
+          </div>
+        </div>
+        <div class="validator" id="validator-1" data-name="Bob" data-coins="30" data-time="60" data-wallet="100">
+          <strong>Bob</strong>
+          <div class="info">
+            Stake: 30 BKS<br>
+            Time: 60 sec<br>
+            Wallet: 100 BKS<br>
+            Chosen: 0 times
+          </div>
+        </div>
+        <div class="validator" id="validator-2" data-name="Charlie" data-coins="20" data-time="180" data-wallet="80">
+          <strong>Charlie</strong>
+          <div class="info">
+            Stake: 20 BKS<br>
+            Time: 180 sec<br>
+            Wallet: 80 BKS<br>
+            Chosen: 0 times
+          </div>
+        </div>
+        <div class="validator" id="validator-3" data-name="David" data-coins="40" data-time="90" data-wallet="120">
+          <strong>David</strong>
+          <div class="info">
+            Stake: 40 BKS<br>
+            Time: 90 sec<br>
+            Wallet: 120 BKS<br>
+            Chosen: 0 times
+          </div>
+        </div>
+        <div class="validator" id="validator-4" data-name="Eve" data-coins="10" data-time="240" data-wallet="60">
+          <strong>Eve</strong>
+          <div class="info">
+            Stake: 10 BKS<br>
+            Time: 240 sec<br>
+            Wallet: 60 BKS<br>
+            Chosen: 0 times
+          </div>
+        </div>
+      </div>
+      <!-- Bar Chart Section -->
+      <div id="barChartContainer">
+        <h3>Validator Selection Chart</h3>
+        <!-- Dynamic bars will appear here -->
+      </div>
+    </div>
+    
+    <div class="blockchain-container" id="blockchain">
+      <!-- Blocks will be appended here -->
+    </div>
+  </div>
+  
+  <!-- Custom Cursor -->
+  <div class="cursor"></div>
+  
+  <script>
+    // ------------------------------
+    // Loading External SVG (Logo)
+    // ------------------------------
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById("logo-container").innerHTML = data;
+        })
+        .catch(error => console.error("Error loading SVG:", error));
+      updateBarChart();
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById("svg-container").innerHTML = data;
+        })
+        .catch(error => console.error("Error loading SVG:", error));
+    });
+
+    
+    /***** Proof of Stake Visualizer Script *****/
+    const validators = Array.from(document.querySelectorAll('.validator')).map(el => ({
+      id: el.id,
+      name: el.getAttribute('data-name'),
+      coins: parseFloat(el.getAttribute('data-coins')),
+      stakingTime: parseFloat(el.getAttribute('data-time')),
+      wallet: parseFloat(el.getAttribute('data-wallet')),
+      element: el,
+      chosenCount: 0
+    }));
+    let blockCount = 0;
+    const REWARD = 10;
+    
+    function computeWeight(validator) {
+      return Math.pow(validator.coins, 2) * (validator.stakingTime / 60);
+    }
+    function selectValidator() {
+      let totalWeight = validators.reduce((sum, v) => sum + computeWeight(v), 0);
+      let random = Math.random() * totalWeight;
+      for (let v of validators) {
+        random -= computeWeight(v);
+        if (random <= 0) return v;
+      }
+      return validators[0];
+    }
+    function clearHighlights() {
+      validators.forEach(v => v.element.classList.remove('highlight'));
+    }
+    function rewardValidator(validator, reward) {
+      validator.wallet += reward;
+      validator.chosenCount++;
+      validator.element.querySelector('.info').innerHTML =
+        `Stake: ${validator.coins} BKS<br>Time: ${validator.stakingTime} sec<br>Wallet: ${validator.wallet} BKS<br>Chosen: ${validator.chosenCount} times`;
+    }
+    function addBlock(selectedValidator) {
+      blockCount++;
+      const blockchainContainer = document.getElementById('blockchain');
+      const blockDiv = document.createElement('div');
+      blockDiv.className = 'block';
+      blockDiv.innerHTML = `<strong>Block #${blockCount}</strong><br>Proposed by ${selectedValidator.name}<br>${new Date().toLocaleTimeString()}`;
+      blockchainContainer.appendChild(blockDiv);
+    }
+    function simulateBlockAddition(callback) {
+      clearHighlights();
+      const chosenValidator = selectValidator();
+      rewardValidator(chosenValidator, REWARD);
+      console.log(`Selected Validator: ${chosenValidator.name} rewarded ${REWARD} BKS`);
+      chosenValidator.element.classList.add('highlight');
+      setTimeout(() => {
+        addBlock(chosenValidator);
+        chosenValidator.element.classList.remove('highlight');
+        updateBarChart();
+        if (callback) callback();
+      }, 1000);
+    }
+    function simulateMultipleBlocks(n) {
+      let i = 0;
+      function iterate() {
+        if (i < n) {
+          simulateBlockAddition(() => {
+            i++;
+            setTimeout(iterate, 200);
+          });
+        }
+      }
+      iterate();
+    }
+    document.getElementById('addBlockBtn').addEventListener('click', simulateBlockAddition);
+    document.getElementById('simulateMultipleBtn').addEventListener('click', () => {
+      const count = parseInt(document.getElementById('blockCountInput').value);
+      if (isNaN(count) || count < 1) {
+        alert("Please enter a valid number of blocks.");
+        return;
+      }
+      simulateMultipleBlocks(count);
+    });
+    
+    function getCircleSize(validator) {
+      return 100 + validator.coins * 1.5;
+    }
+    validators.forEach(v => {
+      const size = getCircleSize(v);
+      v.element.style.width = size + "px";
+      v.element.style.height = size + "px";
+    });
+    
+    function updateBarChart() {
+      const chartContainer = document.getElementById('barChartContainer');
+      chartContainer.innerHTML = '<h3>Validator Selection Chart</h3>';
+      let maxChosen = Math.max(...validators.map(v => v.chosenCount));
+      const maxBarWidth = 180;
+      validators.forEach(v => {
+        const label = document.createElement('div');
+        label.className = 'bar-label';
+        label.innerText = `${v.name}: ${v.chosenCount} times`;
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        const width = maxChosen ? (v.chosenCount / maxChosen) * maxBarWidth : 0;
+        bar.style.width = width + 'px';
+        chartContainer.appendChild(label);
+        chartContainer.appendChild(bar);
+      });
+    }
+    
+    // ------------------------------
+    // Custom Cursor & Ripple Effects
+    // ------------------------------
+    const cursor = document.querySelector(".cursor");
+    document.addEventListener("mousemove", e => {
+      cursor.style.top = `${e.clientY}px`;
+      cursor.style.left = `${e.clientX}px`;
+      const tail = document.createElement("div");
+      tail.classList.add("mouse-tail");
+      tail.style.top = `${e.clientY}px`;
+      tail.style.left = `${e.clientX}px`;
+      document.body.appendChild(tail);
+      setTimeout(() => tail.remove(), 500);
+    });
+    document.querySelectorAll("button, p").forEach(el => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+    });
+    document.querySelectorAll("button").forEach(button => {
+      button.addEventListener("click", e => {
+        button.classList.add("clicked");
+        setTimeout(() => button.classList.remove("clicked"), 400);
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+        ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+        ripple.classList.add("ripple");
+        button.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      });
+    });
+    document.addEventListener("click", e => {
+      const impulses = 2, interval = 90;
+      for (let i = 0; i < impulses; i++) {
+        setTimeout(() => {
+          const impulse = document.createElement("span");
+          impulse.className = "cursor-impulse";
+          impulse.style.left = `${e.clientX}px`;
+          impulse.style.top = `${e.clientY}px`;
+          document.body.appendChild(impulse);
+          impulse.addEventListener("animationend", () => impulse.remove());
+        }, i * interval);
+      }
+    });
+  </script>
+</body>
+</html>

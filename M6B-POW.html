@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Proof-of-Work Visualizer</title>
+  <!-- jQuery and jQuery UI (if needed) -->
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <style>
+    /* Global Variables */
+    :root {
+      --bg-color: #faf4e8;
+      --text-color: #345d7b;
+      --cursor-color: #345d7b;
+      --button-border: #345d7b;
+      --input-border: #ccc;
+      --dynamic-hash-bg: #f1f1f1;
+      --dynamic-hash-color: #333;
+      --edge-bg: #f1f1f1a8;
+      --edge-border: #ccc;
+      --ambient-shadow-light: rgba(0, 0, 0, 0.1);
+      --ambient-shadow-dark: rgba(0, 0, 0, 0.7);
+    }
+    /* Global Reset & Base Styles */
+    * { 
+      font-family: "Teachers", serif; 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      cursor: none !important;
+    }
+    html, body {
+      height: 100%;
+      overflow: auto;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      text-align: center;
+    }
+    /* Left Menu: Simulation Controls */
+    .left-menu {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 20rem;
+      height: 95%;
+      background: var(--bg-color);
+      padding: 15px;
+      border: 2px solid var(--button-border);
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      text-align: left;
+      z-index: 8000;
+    }
+    .left-menu h1 { font-size: 1.2em; margin-bottom: 10px; }
+    .left-menu p { font-size: 0.9em; margin-bottom: 10px; }
+    .left-menu button,
+    .left-menu input {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-color);
+    }
+    /* Logo Container & Details */
+    #logo-container {
+      position: fixed;
+      top: 20px;
+      left: 240px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10000;
+    }
+    #logo-container svg { width: 50px; height: 50px; }
+    #logo-details {
+      position: fixed;
+      top: 20px;
+      left: 300px;
+      text-align: left;
+      font-size: 0.9em;
+      z-index: 10000;
+    }
+    /* Main Content Area */
+    #mainContent {
+      margin-left: 25rem;
+      padding-top: 80px;
+    }
+    /* Top Row: Universal Hash Pool & Miners */
+    .top-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .section {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 10px;
+      overflow: auto;
+      flex: 1;
+    }
+    /* Universal Hash Pool */
+    #hashPoolSection {
+      text-align: center;
+      position: relative;
+    }
+    #hashPoolDiv {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin: 0 auto;
+      border: 2px solid #999;
+    }
+    #acceptableRegion {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,235,59,0.5);
+      border: 2px solid #fbc02d;
+    }
+    /* Dot styling for mining attempts */
+    .dot {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    /* Miners Section */
+    #minersSection { text-align: center; }
+    .miner {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: #4caf50;
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-weight: bold;
+      margin: 20px;
+      position: relative;
+    }
+    .miner button {
+      margin-top: 10px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    /* Bottom Row: Pending Block & Confirmed Blockchain */
+    .bottom-row {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    #pendingSection, #blockchainSection {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 10px;
+      overflow: auto;
+      flex: 1;
+    }
+    #pendingBlocks {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 10px;
+    }
+    .block {
+      border: 2px solid #2196f3;
+      padding: 8px;
+      border-radius: 5px;
+      background: #e3f2fd;
+      margin: 5px;
+    }
+    #blockchain {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .chain-block { display: flex; align-items: center; }
+    .arrow {
+      margin: 0 5px;
+      font-size: 20px;
+      color: #555;
+    }
+    /* Broadcaster Bubble */
+    .broadcast-bubble {
+      position: fixed;
+      left: 50%;
+      top: 10%;
+      transform: translateX(-50%);
+      background: rgba(33,150,243,0.9);
+      color: #fff;
+      padding: 15px 20px;
+      border-radius: 50px;
+      font-size: 16px;
+      z-index: 1000;
+      opacity: 1;
+      animation: ripple 2s ease-out forwards;
+    }
+    @keyframes ripple {
+      0% { transform: translateX(-50%) scale(1); opacity: 1; }
+      100% { transform: translateX(-50%) scale(3); opacity: 0; }
+    }
+    /* SVG Overlay for Verification Lines */
+    #verification-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 500;
+    }
+    /* Validators & Bar Chart (for PoS, reused styles) */
+    #mainContainer {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+    .validators-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .validator {
+      border-radius: 50%;
+      background: var(--cursor-color);
+      color: var(--bg-color);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.5s, background 0.5s;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .validator.highlight {
+      background: var(--button-border);
+      transform: scale(1.1);
+    }
+    .validator .info {
+      font-size: 0.8em;
+      margin-top: 5px;
+    }
+    #barChartContainer {
+      width: 200px;
+      text-align: left;
+    }
+    .bar-label { margin-bottom: 3px; font-size: 0.9em; }
+    .bar {
+      background: var(--button-border);
+      height: 20px;
+      margin: 5px 0;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    /* Custom Cursor & Effects */
+    .cursor {
+      z-index: 10009;
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 30px var(--cursor-color), 0 0 40px var(--cursor-color), 0 0 50px var(--cursor-color);
+    }
+    .cursor:before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: var(--cursor-color);
+      opacity: 0.2;
+      transform: translate(-25%, -25%);
+      border-radius: 50%;
+    }
+    .cursor.hover {
+      transform: scale(2);
+      background-color: var(--bg-color);
+      box-shadow: 0 0 20px var(--cursor-color), 0 0 40px var(--cursor-color);
+    }
+    .mouse-tail {
+      z-index: 10009;
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: rgba(52,93,123, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: fadeTail 1s forwards;
+    }
+    @keyframes fadeTail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.5); }
+    }
+    .ripple {
+      position: absolute;
+      background: var(--cursor-color);
+      border-radius: 50%;
+      transform: scale(0);
+      animation: rippleEffect 0.6s linear;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+    }
+    @keyframes rippleEffect {
+      from { transform: scale(0); opacity: 0.8; }
+      to { transform: scale(5); opacity: 0; }
+    }
+    .cursor-impulse {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--cursor-color);
+      opacity: 0.05;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: cursorImpulse 1s ease-out forwards;
+    }
+    @keyframes cursorImpulse {
+      0% { transform: scale(0); opacity: 0.1; }
+      100% { transform: scale(25); opacity: 0; }
+    }
+    svg {
+    width: 100px;
+    height: 100px;
+  }
+#svg-container {
+background: none;
+transition: 0.7s all ease-in-out;
+}
+  </style>
+</head>
+<body>
+  <!-- Left Menu: Block Simulation Controls -->
+  <div class="left-menu">
+    <div id="svg-container" style="display: flex; flex-direction: row;"></div>
+    <h1>Block Simulation</h1>
+    <p>
+      Use these controls to simulate the proof-of-work process. Click "Pause All" to suspend mining and verification.
+      Miners will continuously attempt to mine by generating random hash attempts. When a hash falls within the acceptable region (the center green square), the block is submitted for verification.
+    </p>
+    <button id="universalToggle" onclick="toggleAll()">Pause All</button>
+  </div>
+  
+  <!-- Main Content: Right Side -->
+  <div id="mainContent">
+    <!-- Logo & Details -->
+    <div id="logo-container">
+      <!-- SVG logo will be loaded here -->
+    </div>
+    <div id="logo-details">
+      <strong>Proof-of-Work Visualizer</strong><br>
+      Mining Simulation
+    </div>
+    
+    <!-- Top Row: Universal Hash Pool & Miners -->
+    <div class="top-row">
+      <!-- Universal Hash Pool Section -->
+      <div class="section" id="hashPoolSection">
+        <h3>Universal Possible Hash Values</h3>
+        <div id="hashPoolDiv">
+          <div id="acceptableRegion"></div>
+        </div>
+      </div>
+      <!-- Miners Section -->
+      <div class="section" id="minersSection">
+        <h3>Miners</h3>
+        <div class="miner" data-id="1">
+          <div>User 1</div>
+          <button id="miner-btn-1" onclick="toggleMining(1)">Stop</button>
+        </div>
+        <div class="miner" data-id="2">
+          <div>User 2</div>
+          <button id="miner-btn-2" onclick="toggleMining(2)">Stop</button>
+        </div>
+        <div class="miner" data-id="3">
+          <div>User 3</div>
+          <button id="miner-btn-3" onclick="toggleMining(3)">Stop</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bottom Row: Pending Block & Confirmed Blockchain -->
+    <div class="bottom-row">
+      <div class="section" id="pendingSection">
+        <h3>Pending Block</h3>
+        <div id="pendingBlocks"></div>
+      </div>
+      <div class="section" id="blockchainSection">
+        <h3>Blockchain</h3>
+        <div id="blockchain"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- SVG Overlay for Verification Lines -->
+  <svg id="verification-overlay"></svg>
+  
+  <!-- Custom Cursor -->
+  <div class="cursor"></div>
+  
+  <script>
+    /***** Proof-of-Work Visualizer Script *****/
+    // Universal Hash Pool Setup
+    const hashPoolDiv = document.getElementById('hashPoolDiv');
+    const poolWidth = hashPoolDiv.offsetWidth;
+    const poolHeight = hashPoolDiv.offsetHeight;
+    const poolCenter = { x: poolWidth / 2, y: poolHeight / 2 };
+    const acceptableWidth = 30;
+    const acceptableHeight = 30;
+    
+    function createDot(x, y, color) {
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      dot.style.backgroundColor = color;
+      dot.style.left = (x - 4) + 'px';
+      dot.style.top = (y - 4) + 'px';
+      hashPoolDiv.appendChild(dot);
+    }
+    
+    // Mining Simulation Setup
+    const autoMineIntervals = {};
+    let allPaused = false;
+    const pendingTimers = {};
+    
+    function mine(minerId) {
+      const x = Math.random() * poolWidth;
+      const y = Math.random() * poolHeight;
+      const minX = poolCenter.x - acceptableWidth / 2;
+      const maxX = poolCenter.x + acceptableWidth / 2;
+      const minY = poolCenter.y - acceptableHeight / 2;
+      const maxY = poolCenter.y + acceptableHeight / 2;
+      const acceptable = (x >= minX && x <= maxX && y >= minY && y <= maxY);
+      createDot(x, y, acceptable ? 'green' : 'red');
+      if (acceptable) {
+        const nonce = Math.floor(Math.random() * 1000000);
+        submitBlock(minerId, nonce);
+      }
+    }
+    
+    function toggleMining(minerId) {
+      const btn = document.getElementById(`miner-btn-${minerId}`);
+      if (autoMineIntervals[minerId]) {
+        clearInterval(autoMineIntervals[minerId]);
+        autoMineIntervals[minerId] = null;
+        btn.textContent = 'Start';
+      } else {
+        autoMineIntervals[minerId] = setInterval(() => mine(minerId), 1000);
+        btn.textContent = 'Stop';
+      }
+    }
+    
+    // Start auto-mining for each miner on load.
+    [1, 2, 3].forEach(minerId => {
+      autoMineIntervals[minerId] = setInterval(() => mine(minerId), 1000);
+    });
+    
+    // Universal toggle to pause/resume all mining and pending timers.
+    function toggleAll() {
+      const universalBtn = document.getElementById('universalToggle');
+      if (!allPaused) {
+        [1, 2, 3].forEach(minerId => {
+          if (autoMineIntervals[minerId]) {
+            clearInterval(autoMineIntervals[minerId]);
+            autoMineIntervals[minerId] = null;
+            document.getElementById(`miner-btn-${minerId}`).textContent = 'Start';
+          }
+        });
+        for (const key in pendingTimers) {
+          const timer = pendingTimers[key];
+          const elapsed = Date.now() - timer.startTime;
+          timer.remaining = timer.duration - elapsed;
+          clearTimeout(timer.timeoutId);
+        }
+        universalBtn.textContent = 'Resume All';
+        allPaused = true;
+      } else {
+        [1, 2, 3].forEach(minerId => {
+          if (!autoMineIntervals[minerId]) {
+            autoMineIntervals[minerId] = setInterval(() => mine(minerId), 1000);
+            document.getElementById(`miner-btn-${minerId}`).textContent = 'Stop';
+          }
+        });
+        for (const key in pendingTimers) {
+          const timer = pendingTimers[key];
+          timer.startTime = Date.now();
+          timer.timeoutId = setTimeout(() => completePendingBlock(key), timer.remaining);
+        }
+        universalBtn.textContent = 'Pause All';
+        allPaused = false;
+      }
+    }
+    
+    // Block Submission & Verification
+    const pendingBlocksEl = document.getElementById('pendingBlocks');
+    const blockchainEl = document.getElementById('blockchain');
+    let blockchainChain = [];
+    
+    function getSVGOverlay() {
+      return document.getElementById('verification-overlay');
+    }
+    
+    function drawVerificationLines(pendingEl) {
+      const svg = getSVGOverlay();
+      const pendingRect = pendingEl.getBoundingClientRect();
+      const pendingCenter = {
+        x: pendingRect.left + pendingRect.width / 2,
+        y: pendingRect.top + pendingRect.height / 2
+      };
+      const miners = document.querySelectorAll('.miner');
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      group.setAttribute('data-pending-id', pendingEl.id);
+      miners.forEach(miner => {
+        const minerRect = miner.getBoundingClientRect();
+        const minerCenter = {
+          x: minerRect.left + minerRect.width / 2,
+          y: minerRect.top + minerRect.height / 2
+        };
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', pendingCenter.x);
+        line.setAttribute('y1', pendingCenter.y);
+        line.setAttribute('x2', minerCenter.x);
+        line.setAttribute('y2', minerCenter.y);
+        line.setAttribute('stroke', '#555');
+        line.setAttribute('stroke-width', '2');
+        line.setAttribute('stroke-dasharray', '4,4');
+        group.appendChild(line);
+      });
+      svg.appendChild(group);
+    }
+    
+    function removeVerificationLines(pendingId) {
+      const svg = getSVGOverlay();
+      const group = svg.querySelector(`g[data-pending-id="${pendingId}"]`);
+      if (group) svg.removeChild(group);
+    }
+    
+    function completePendingBlock(pendingId) {
+      const timer = pendingTimers[pendingId];
+      if (!timer) return;
+      if (pendingBlocksEl.contains(timer.blockEl)) {
+        pendingBlocksEl.removeChild(timer.blockEl);
+      }
+      removeVerificationLines(pendingId);
+      addBlockToChain(timer.minerId, timer.nonce);
+      delete pendingTimers[pendingId];
+    }
+    
+    function submitBlock(minerId, nonce) {
+      const pendingId = 'pending-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+      const blockEl = document.createElement('div');
+      blockEl.className = 'block';
+      blockEl.id = pendingId;
+      blockEl.innerHTML = `<strong>Miner ${minerId}</strong><br>
+                           Nonce: ${nonce}<br>
+                           <em>Verification Undergoing...</em>
+                           <div class="verification-status">User 1: Verifying... | User 2: Verifying... | User 3: Verifying...</div>`;
+      pendingBlocksEl.appendChild(blockEl);
+      drawVerificationLines(blockEl);
+      const duration = 2000;
+      const startTime = Date.now();
+      const timeoutId = setTimeout(() => completePendingBlock(pendingId), duration);
+      pendingTimers[pendingId] = { timeoutId, startTime, duration, minerId, nonce, blockEl };
+    }
+    
+    function addBlockToChain(minerId, nonce) {
+      const block = { id: blockchainChain.length + 1, miner: minerId, nonce: nonce };
+      blockchainChain.push(block);
+      renderBlockchain();
+      broadcastBlock();
+    }
+    
+    function renderBlockchain() {
+      blockchainEl.innerHTML = '';
+      blockchainChain.forEach((block, index) => {
+        const chainBlock = document.createElement('div');
+        chainBlock.className = 'chain-block';
+        const blockEl = document.createElement('div');
+        blockEl.className = 'block';
+        blockEl.innerHTML = `<strong>Block ${block.id}</strong><br>
+                             Miner ${block.miner} | Nonce: ${block.nonce}`;
+        chainBlock.appendChild(blockEl);
+        if (index < blockchainChain.length - 1) {
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.textContent = '→';
+          chainBlock.appendChild(arrow);
+        }
+        blockchainEl.appendChild(chainBlock);
+      });
+    }
+    
+    function broadcastBlock() {
+      const bubble = document.createElement('div');
+      bubble.className = 'broadcast-bubble';
+      bubble.textContent = 'New Block Added!';
+      document.body.appendChild(bubble);
+      setTimeout(() => { bubble.parentElement.removeChild(bubble); }, 2000);
+    }
+    
+    // ------------------------------
+    // Custom Cursor & Ripple Effects
+    // ------------------------------
+    const cursor = document.querySelector(".cursor");
+    document.addEventListener("mousemove", e => {
+      cursor.style.top = `${e.clientY}px`;
+      cursor.style.left = `${e.clientX}px`;
+      const tail = document.createElement("div");
+      tail.classList.add("mouse-tail");
+      tail.style.top = `${e.clientY}px`;
+      tail.style.left = `${e.clientX}px`;
+      document.body.appendChild(tail);
+      setTimeout(() => tail.remove(), 500);
+    });
+    document.querySelectorAll("button, p").forEach(el => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+    });
+    document.querySelectorAll("button").forEach(button => {
+      button.addEventListener("click", e => {
+        button.classList.add("clicked");
+        setTimeout(() => button.classList.remove("clicked"), 400);
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+        ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+        ripple.classList.add("ripple");
+        button.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      });
+    });
+    document.addEventListener("click", e => {
+      const impulses = 2, interval = 90;
+      for (let i = 0; i < impulses; i++) {
+        setTimeout(() => {
+          const impulse = document.createElement("span");
+          impulse.className = "cursor-impulse";
+          impulse.style.left = `${e.clientX}px`;
+          impulse.style.top = `${e.clientY}px`;
+          document.body.appendChild(impulse);
+          impulse.addEventListener("animationend", () => impulse.remove());
+        }, i * interval);
+      }
+    });
+  </script>
+</body>
+</html>
