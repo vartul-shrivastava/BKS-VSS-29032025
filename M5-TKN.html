@@ -15,12 +15,6 @@
       --header-color: linear-gradient(135deg, #345d7b, #6f90a8);
       --button-border: #345d7b;
       --input-border: #ccc;
-      --dynamic-hash-bg: #f1f1f1;
-      --dynamic-hash-color: #333;
-      --edge-bg: #f1f1f1a8;
-      --edge-border: #ccc;
-      --ambient-shadow-light: rgba(0, 0, 0, 0.1);
-      --ambient-shadow-dark: rgba(0, 0, 0, 0.7);
     }
     * {
       font-family: "Teachers", serif;
@@ -38,7 +32,7 @@
       color: var(--text-color);
     }
     .cursor {
-      z-index: 10009;
+      z-index: 30000;
       position: fixed;
       width: 10px;
       height: 10px;
@@ -109,20 +103,9 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
-    #modalContainer {
-      height: 100rem;
-      display: flex;
-      flex-direction: row;
-      gap: 20px;
-      padding: 20px;
-      overflow-x: auto;
-      justify-content: center;
-      align-items: flex-start;
-      position: relative;
-    }
     .modal-window {
       flex: auto;
-      max-width: 800px;
+      max-width: 400px;
       background-color: var(--bg-color);
       color: var(--text-color);
       border: 2px solid var(--button-border);
@@ -130,22 +113,20 @@
       box-shadow: 0 30px 60px #345d7b;
       z-index: 10000;
       margin: 10px;
+      overflow: hidden;
+      position: absolute;
     }
     .modal-header {
-      height: 80px;
+      height: 60px;
       padding: 0 10px;
       background-color: var(--cursor-color);
       color: var(--bg-color);
       font-weight: bold;
-      font-size: 17px;
+      font-size: 16px;
       display: flex;
       align-items: center;
-      text-align: right;
+      justify-content: space-between;
       cursor: move;
-    }
-    .btn-header {
-      margin-left: auto;
-      margin-right: 0;
     }
     .modal-header button {
       width: 1rem;
@@ -157,44 +138,53 @@
     .modal-content {
       display: flex;
       flex-direction: row;
-      z-index: 10000;
-      padding: 15px;
-      flex: 1;
+      padding: 10px;
       overflow-y: auto;
     }
-    .modal-content .transfer-section,
-    .modal-content .inventory-section,
-    .modal-content .inventory-title,
-    .modal-content .message-container {
+    .transfer-section,
+    .inventory-section {
       margin: 5px;
+    }
+    .inventory-title {
+      font-weight: bold;
+      margin: 5px 0;
     }
     .message-container {
       padding: 0.7rem;
       background: linear-gradient(135deg, #d6eeff8f, #8eaec55b);
       border-radius: 10px;
-      align-items: center;
       text-align: center;
       font-weight: bold;
       color: #345d7b;
       border: 1px solid var(--input-border);
+      margin-bottom: 10px;
     }
     .token-balloon {
+      padding: 15px;
       display: flex;
       align-items: center;
       justify-content: center;
       text-align: center;
       margin: 5px;
-      border: 4px solid;
-      border-radius: 50%;
-      font-weight: bold;
-      width: 80px;
-      height: 80px;
+      border: 4px dotted;
+      font-weight: normal;
+      width: 60px;
+      height: 60px;
     }
     .coin-icon {
       display: inline-block;
-      font-size: 2em;
+      font-size: 1.5em;
       color: goldenrod;
       margin: 5px;
+    }
+    #modalContainer {
+      height: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 20px;
+      overflow: auto;
+      position: relative;
     }
     #systemTray { 
       width: 100%;
@@ -220,9 +210,7 @@
   <div class="cursor"></div>
   <div class="user-management">
     <h1>Multi-User Token Visualizer</h1>
-    <p>
-      Add users to the system. Each user starts with a wallet of 100 coins, two fungible tokens (with unique codes), and one unique NFT (non-transferable). You can transfer coins, fungible tokens, or attempt an NFT transfer (which will trigger an error).
-    </p>
+    <p>Add users to the system. Each user starts with a wallet of 100 coins, two fungible tokens (unique 4‑letter alphanumeric codes), and one unique NFT (non-transferable). Transfer coins, fungible tokens, or initiate an NFT transfer (which will require extra confirmation).</p>
     <input type="text" id="newUserName" placeholder="Enter new user name">
     <button id="addUser">Add User</button>
     <div id="userList"><strong>Current Users:</strong></div>
@@ -230,14 +218,14 @@
   <div id="modalContainer"></div>
   <div id="systemTray"></div>
   <script>
-    // Custom Cursor
+    // Custom Cursor Implementation
     const cursor = document.querySelector(".cursor");
     document.addEventListener("mousemove", (e) => {
       cursor.style.top = `${e.clientY}px`;
       cursor.style.left = `${e.clientX}px`;
     });
     
-    // Global Data
+    // Global Data Structures
     let users = [];
     let modals = {};
     let userAssets = {};
@@ -247,7 +235,27 @@
       nft: { type: "nft", name: "Non Fungible Token", icon: "🖼️", color: "purple" }
     };
     
-    // Create a Token Balloon
+    // Helper: Generate random alphanumeric ID of given length (for fungible tokens)
+    function generateTokenID(length) {
+      let result = '';
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+      return result;
+    }
+    
+    // Helper: Generate random NFT suffix of given length
+    function generateNFTSuffix(length) {
+      let result = '';
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+      return result;
+    }
+    
+    // Create token balloon element
     function createTokenBalloon(tokenObj) {
       const model = tokenModels[tokenObj.type];
       const div = document.createElement("div");
@@ -259,13 +267,14 @@
       return div;
     }
     
-    // UI Update Functions
+    // Update user list display and modals
     function updateUserList() {
       const userListDiv = document.getElementById("userList");
       userListDiv.innerHTML = "<strong>Current Users:</strong> " + users.join(", ");
       updateAllModals();
     }
     
+    // Update every user’s modal (inventory, recipient list, transfer input)
     function updateAllModals() {
       users.forEach((user, index) => {
         if (!modals[user]) {
@@ -278,7 +287,7 @@
       });
     }
     
-    // Create User Modal & Initialize Assets
+    // Create a modal panel for a user and initialize assets
     function createUserModal(user, index) {
       const modal = document.createElement("div");
       modal.className = "modal-window";
@@ -286,12 +295,14 @@
       modal.style.top = (50 + index * 30) + "px";
       modal.style.left = (260 + index * 40) + "px";
       
+      // Build header with title and control buttons
       const header = document.createElement("div");
       header.className = "modal-header";
       const titleSpan = document.createElement("span");
       titleSpan.className = "modal-title";
       titleSpan.innerText = user;
       header.appendChild(titleSpan);
+      
       const btnHeader = document.createElement("div");
       btnHeader.className = "btn-header";
       const minBtn = document.createElement("button");
@@ -308,6 +319,7 @@
       btnHeader.appendChild(closeBtn);
       header.appendChild(btnHeader);
       
+      // Build content with transfer and inventory sections
       const content = document.createElement("div");
       content.className = "modal-content";
       content.innerHTML = `
@@ -335,25 +347,31 @@
           </div>
       `;
       
+      // Append header and content to modal and to the DOM
       modal.innerHTML = "";
       modal.appendChild(header);
       modal.appendChild(content);
       document.getElementById("modalContainer").appendChild(modal);
       modals[user] = modal;
       
+      // Initialize assets for new user:
+      // - Wallet starts at 100 coins.
+      // - Two fungible tokens get random 4-letter IDs.
+      // - One NFT with a random suffix appended to the user’s name.
       userAssets[user] = {
         wallet: 100,
         fungible: [
-          { type: "fungible", code: `${user}-01F` },
-          { type: "fungible", code: `${user}-02F` }
+          { type: "fungible", code: generateTokenID(4) },
+          { type: "fungible", code: generateTokenID(4) }
         ],
         nft: [
-          { type: "nft", code: `${user}-01NFT` }
+          { type: "nft", code: `${user}-${generateNFTSuffix(3)}NFT` }
         ]
       };
       
+      // Make the modal draggable and resizable.
       $(modal).draggable({ handle: ".modal-header", containment: "window" })
-              .resizable({ containment: "window", minHeight: 400, minWidth: 320 });
+              .resizable({ containment: "window", minHeight: 300, minWidth: 300 });
       
       attachPanelEventListeners(modal);
       updateRecipientDropdown(user);
@@ -361,7 +379,7 @@
       updateInventory(user);
     }
     
-    // Populate recipient dropdown
+    // Update recipient dropdown for a given user's modal
     function updateRecipientDropdown(user) {
       const modal = modals[user];
       if (!modal) return;
@@ -376,7 +394,7 @@
       });
     }
     
-    // Update transfer dropdown/input
+    // Update transfer dropdown/input based on chosen transfer type
     function updateTransferDropdown(user) {
       const modal = modals[user];
       if (!modal) return;
@@ -413,10 +431,11 @@
       }
     }
     
-    // Update Inventory display
+    // Update inventory display for coins, fungible tokens, and NFTs
     function updateInventory(user) {
       const walletDiv = document.getElementById("wallet-" + user);
       walletDiv.innerHTML = `<span class="coin-icon">${tokenModels.coin.icon}</span> ${userAssets[user].wallet} Coins`;
+      
       const fungibleDiv = document.getElementById("fungible-" + user);
       fungibleDiv.innerHTML = "";
       userAssets[user].fungible.forEach((tokenObj, index) => {
@@ -424,6 +443,7 @@
         tokenElem.dataset.index = index;
         fungibleDiv.appendChild(tokenElem);
       });
+      
       const nftDiv = document.getElementById("nft-" + user);
       nftDiv.innerHTML = "";
       userAssets[user].nft.forEach((tokenObj, index) => {
@@ -433,7 +453,7 @@
       });
     }
     
-    // Attach modal event listeners
+    // Attach event listeners for modal transfer controls
     function attachPanelEventListeners(modal) {
       modal.querySelector(".transfer-type-dropdown").addEventListener("change", function() {
         const user = this.getAttribute("data-user");
@@ -449,6 +469,7 @@
             alert("Select a recipient.");
             return;
           }
+          
           if (transferType === "coin") {
             const amountInput = modal.querySelector(".coin-amount");
             const amount = parseInt(amountInput.value);
@@ -463,6 +484,7 @@
             userAssets[sender].wallet -= amount;
             userAssets[recipient].wallet += amount;
             animateTransfer(sender, recipient, "coin", amount);
+            
           } else if (transferType === "fungible") {
             const tokenSelect = modal.querySelector(".fungible-transfer-dropdown");
             if (!tokenSelect) {
@@ -473,8 +495,76 @@
             const tokenObj = userAssets[sender].fungible.splice(selectedIndex, 1)[0];
             userAssets[recipient].fungible.push(tokenObj);
             animateTransfer(sender, recipient, "fungible", tokenObj);
+            
           } else if (transferType === "nft") {
-            alert("Error: NFT is unique to self and is not transferrable.");
+            // Build a dropdown for new NFT author selection (excluding sender)
+            const newAuthorOptions = users
+              .filter(u => u !== sender)
+              .map(u => `<option value="${u}">${u}</option>`)
+              .join('');
+  
+            // Create NFT transfer dialog for extra details
+            const nftDialogHtml = `
+              <div id="nftTransferDialog" title="NFT Transfer Authorization">
+                <p>A valid contract must be properly signed before proceeding.</p>
+                <p>Please provide the following details to transfer NFT authorship:</p>
+                <label for="contractDetails">Contract Details:</label>
+                <input type="text" id="contractDetails" style="width: 100%; margin-bottom:10px;" placeholder="Enter contract info">
+                <label for="newAuthor">Select New Author:</label>
+                <select id="newAuthor" style="width: 100%; margin-bottom:10px;">
+                  ${newAuthorOptions}
+                </select>
+                <p><strong>Note:</strong> Transferring NFT authorship has legal implications. Review all terms before proceeding.</p>
+              </div>
+            `;
+            $("body").append(nftDialogHtml);
+  
+            $("#nftTransferDialog").dialog({
+              modal: true,
+              width: 400,
+              open: function() {
+                $(this).parent().css("z-index", 11000);
+              },
+              buttons: {
+                "Transfer NFT": function() {
+                  const contractDetails = $("#contractDetails").val().trim();
+                  const newAuthor = $("#newAuthor").val();
+                  if (contractDetails === "") {
+                    alert("Please enter the contract details required for the NFT transfer.");
+                    return;
+                  }
+                  if (!newAuthor) {
+                    alert("Please select a new author from the dropdown.");
+                    return;
+                  }
+                  if (confirm("Are you absolutely sure you want to transfer NFT authorship? This action may have legal and technical consequences.")) {
+                    const tokenSelect = modal.querySelector(".nft-transfer-dropdown");
+                    if (!tokenSelect) {
+                      alert("No NFT available to transfer.");
+                      $(this).dialog("close");
+                      return;
+                    }
+                    const selectedIndex = tokenSelect.value;
+                    // Remove NFT from sender and update name with new owner prefix and random suffix.
+                    const tokenObj = userAssets[sender].nft.splice(selectedIndex, 1)[0];
+                    tokenObj.code = newAuthor + "-" + generateNFTSuffix(3) + "NFT";
+                    userAssets[newAuthor].nft.push(tokenObj);
+                    animateTransfer(sender, newAuthor, "nft", tokenObj);
+                    updateInventory(sender);
+                    updateInventory(newAuthor);
+                    users.forEach(u => updateRecipientDropdown(u));
+                    updateTransferDropdown(sender);
+                    $(this).dialog("close");
+                  }
+                },
+                Cancel: function() {
+                  $(this).dialog("close");
+                }
+              },
+              close: function() {
+                $(this).remove();
+              }
+            });
             return;
           }
           updateInventory(sender);
@@ -485,7 +575,7 @@
       });
     }
     
-    // Animate transfer
+    // Animate token transfers between sender and recipient.
     function animateTransfer(sender, recipient, type, data) {
       let $elem, startPos, endPos;
       if (type === "coin") {
@@ -493,22 +583,36 @@
         $("body").append($elem);
         startPos = $("#wallet-" + sender).offset();
         endPos = $("#wallet-" + recipient).offset();
+        $elem.css({ top: startPos.top, left: startPos.left, opacity: 1 });
+        $elem.animate({ top: endPos.top, left: endPos.left, opacity: 0.5 }, 1000, function() {
+          $elem.remove();
+        });
       } else if (type === "fungible") {
         const tokenElem = createTokenBalloon(data);
         $elem = $(tokenElem);
         $("body").append($elem);
+        $elem.css("position", "absolute");
         startPos = $("#fungible-" + sender).offset();
         endPos = $("#fungible-" + recipient).offset();
+        $elem.css({ top: startPos.top, left: startPos.left, opacity: 1 });
+        $elem.animate({ top: endPos.top, left: endPos.left, opacity: 0.5 }, 1000, function() {
+          $elem.remove();
+        });
+      } else if (type === "nft") {
+        const tokenElem = createTokenBalloon(data);
+        $elem = $(tokenElem);
+        $("body").append($elem);
+        $elem.css("position", "absolute");
+        startPos = $("#nft-" + sender).offset();
+        endPos = $("#nft-" + recipient).offset();
+        $elem.css({ top: startPos.top, left: startPos.left, opacity: 1 });
+        $elem.animate({ top: endPos.top, left: endPos.left, opacity: 0.5 }, 1500, "swing", function() {
+          $elem.remove();
+        });
       }
-      if (!startPos) startPos = $(modals[sender]).offset();
-      if (!endPos) endPos = $(modals[recipient]).offset();
-      $elem.css({ top: startPos.top, left: startPos.left, opacity: 1 });
-      $elem.animate({ top: endPos.top, left: endPos.left, opacity: 0.5 }, 1000, function() {
-        $elem.remove();
-      });
     }
     
-    // Modal Controls
+    // Modal controls: minimize, close, restore, and system tray handling.
     function minimizeModal(user) {
       const modal = modals[user];
       if (!modal) return;
@@ -556,7 +660,7 @@
       }
     }
     
-    // Add New User
+    // Add New User button handler
     document.getElementById('addUser').addEventListener('click', function(){
       const newUser = document.getElementById('newUserName').value.trim();
       if (newUser === "") {

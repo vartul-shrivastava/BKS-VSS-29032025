@@ -273,7 +273,7 @@
     }
     .modal-window {
       flex: auto;
-      max-width: 800px;
+      max-width: 20%;
       background-color: var(--bg-color);
       color: var(--text-color);
       border: 2px solid var(--button-border);
@@ -305,18 +305,10 @@
       color: var(--bg-color);
       cursor: pointer;
     }
-    .modal-content {
-      display: flex;
-      flex-direction: row;
-      z-index: 10000;
-      padding: 15px;
-      flex: 1;
-      overflow-y: auto;
-    }
-    .modal-content .compose-section,
-    .modal-content .section-title,
-    .modal-content .message-container,
-    .modal-content .button-group { margin: 5px; }
+    .compose-section,
+    .section-title,
+    .message-container,
+    .button-group { margin: 5px; }
     .message-container {
       padding: 0.7rem;
       background: linear-gradient(135deg, #d6eeff8f, #8eaec55b);
@@ -349,8 +341,7 @@
       justify-content: center;
       position: relative;
     }
-    .encryption-layer > .base-balloon { text-align: center; border-radius: 50%; }
-    .base-balloon { margin: 0 auto; }
+    .base-balloon { text-align: center; border-radius: 50%; }
     .encryption-layer .layer-label {
       position: absolute;
       bottom: -20px;
@@ -396,6 +387,12 @@
   <div id="modalContainer"></div>
   <div id="systemTray"></div>
   <script>
+    // Helper function to sanitize user names for valid element IDs.
+    function sanitize(user) {
+      return user.replace(/\s+/g, "_");
+    }
+
+    // Cursor movement and ripple effects.
     const cursor = document.querySelector(".cursor");
     document.addEventListener("mousemove", (e) => {
       cursor.style.top = `${e.clientY}px`;
@@ -445,8 +442,11 @@
         .then(data => { document.getElementById("svg-container").innerHTML = data; })
         .catch(error => console.error("Error loading SVG:", error));
     });
+
+    // Global variables.
     let users = [], outgoingBalloon = {}, incomingBalloon = {}, modals = {};
     const symmetricKey = "symmetric", baseSize = 100, increment = 40;
+
     function createBaseBalloon(message) {
       const div = document.createElement("div");
       div.classList.add("base-balloon");
@@ -521,9 +521,10 @@
       });
     }
     function createUserModal(user, index) {
+      const safeUser = sanitize(user);
       const modal = document.createElement("div");
       modal.className = "modal-window";
-      modal.id = "modal-" + user;
+      modal.id = "modal-" + safeUser;
       modal.style.top = (50 + index * 30) + "px";
       modal.style.left = (260 + index * 40) + "px";
       const header = document.createElement("div");
@@ -554,6 +555,7 @@
       btnHeader.appendChild(minBtn);
       btnHeader.appendChild(closeBtn);
       header.appendChild(btnHeader);
+      
       const content = document.createElement("div");
       content.className = "modal-content";
       content.innerHTML = `
@@ -563,16 +565,16 @@
             <select class="recipient-dropdown" data-user="${user}"></select>
             <button class="compose-button" data-user="${user}">Compose Message</button>
           </div>
-          <div class="button-group outgoing-buttons" id="outgoing-buttons-${user}">
+          <div class="button-group outgoing-buttons" id="outgoing-${safeUser}">
             <div class="section-title">Outgoing Message</div>
-            <div class="message-container" id="outgoing-${user}"></div>
+            <div class="message-container"></div>
             <select class="encryption-dropdown" data-user="${user}"></select>
             <button class="encrypt-button" data-user="${user}">Encrypt</button>
             <button class="send-message" data-user="${user}">Send Message</button>
           </div>
-          <div class="button-group incoming-buttons" id="incoming-buttons-${user}">
+          <div class="button-group incoming-buttons" id="incoming-${safeUser}">
             <div class="section-title">Incoming Message</div>
-            <div class="message-container" id="incoming-${user}"></div>
+            <div class="message-container"></div>
             <select class="decryption-dropdown" data-user="${user}"></select>
             <button class="decrypt-button" data-user="${user}">Decrypt</button>
             <button class="reset-message" data-user="${user}">Reset Message</button>
@@ -585,7 +587,7 @@
       modals[user] = modal;
       $(modal).draggable({ handle: ".modal-header", containment: "window" })
               .resizable({ containment: "window", minHeight: 400, minWidth: 320 });
-      attachPanelEventListeners(modal);
+      attachPanelEventListeners(modal, safeUser);
       updateComposeDropdown(user);
       updateEncryptionDropdown(user);
       updateDecryptionDropdown(user);
@@ -603,7 +605,6 @@
         select.appendChild(option);
       });
     }
-    function updateAllDropdowns() { users.forEach(user => { updateEncryptionDropdown(user); updateDecryptionDropdown(user); }); }
     function updateEncryptionDropdown(user) {
       const modal = modals[user];
       if (!modal) return;
@@ -646,6 +647,7 @@
       const select = modal.querySelector(`.decryption-dropdown`);
       if (!select) return;
       select.innerHTML = "";
+      // Always include own keys and symmetric option.
       const opt1 = document.createElement("option");
       opt1.value = user + "-private";
       opt1.text = "Decrypt with My Private Key";
@@ -658,19 +660,17 @@
       optionSym.value = "symmetric";
       optionSym.text = "Decrypt with Symmetric Key";
       select.appendChild(optionSym);
-      const inBalloon = incomingBalloon[user];
-      if (inBalloon && inBalloon.classList.contains("encryption-layer") &&
-          inBalloon.dataset.sender && inBalloon.dataset.sender !== user) {
-        const outerKey = inBalloon.getAttribute("data-key");
-        if (outerKey.endsWith("private")) {
-          const opt3 = document.createElement("option");
-          opt3.value = inBalloon.dataset.sender + "-public";
-          opt3.text = "Decrypt with " + inBalloon.dataset.sender + "'s Public Key";
-          select.appendChild(opt3);
+      // Dynamically add all other users' public keys.
+      users.forEach(u => {
+        if (u !== user) {
+          const opt = document.createElement("option");
+          opt.value = u + "-public";
+          opt.text = "Decrypt with " + u + "'s Public Key";
+          select.appendChild(opt);
         }
-      }
+      });
     }
-    function attachPanelEventListeners(modal) {
+    function attachPanelEventListeners(modal, safeUser) {
       modal.querySelectorAll(".compose-button").forEach(btn => {
         btn.onclick = function() {
           const user = this.getAttribute("data-user");
@@ -682,8 +682,10 @@
           balloon.dataset.sender = user;
           balloon.dataset.recipient = recipient;
           outgoingBalloon[user] = balloon;
-          panel.querySelector("#outgoing-" + user).innerHTML = "";
-          panel.querySelector("#outgoing-" + user).appendChild(balloon);
+          // Only clear the message container
+          const msgContainer = panel.querySelector("#outgoing-" + safeUser + " .message-container");
+          msgContainer.innerHTML = "";
+          msgContainer.appendChild(balloon);
           panel.querySelector(".compose-text").value = "";
           updateEncryptionDropdown(user);
         };
@@ -695,8 +697,9 @@
           if (!balloon) { alert("Compose a message first."); return; }
           const encType = modal.querySelector(`.encryption-dropdown`).value;
           outgoingBalloon[user] = wrapBalloon(balloon, encType);
-          modal.querySelector("#outgoing-" + user).innerHTML = "";
-          modal.querySelector("#outgoing-" + user).appendChild(outgoingBalloon[user]);
+          const msgContainer = modal.querySelector("#outgoing-" + safeUser + " .message-container");
+          msgContainer.innerHTML = "";
+          msgContainer.appendChild(outgoingBalloon[user]);
           updateEncryptionDropdown(user);
         };
       });
@@ -709,10 +712,12 @@
           if (!recipient) { alert("No recipient specified."); return; }
           const $balloon = $(balloon);
           let startPos = $balloon.offset();
-          $balloon.css({ position: 'absolute', top: startPos.top, left: startPos.left, zIndex: 10000 }).appendTo('body');
+          $balloon.css({ position: 'absolute', top: startPos.top, left: startPos.left, zIndex: 10000 })
+                  .appendTo('body');
           const recipientModal = modals[recipient];
           if (!recipientModal) { alert("Recipient modal not found."); return; }
-          const $recipientContainer = $(recipientModal).find("#incoming-" + recipient);
+          const recipientSafe = sanitize(recipient);
+          const $recipientContainer = $(recipientModal).find("#incoming-" + recipientSafe + " .message-container");
           let endPos = $recipientContainer.offset();
           let containerWidth = $recipientContainer.outerWidth(), containerHeight = $recipientContainer.outerHeight();
           let balloonWidth = $balloon.outerWidth(), balloonHeight = $balloon.outerHeight();
@@ -723,7 +728,7 @@
             incomingBalloon[recipient] = balloon;
             $balloon.detach();
             $balloon.css({ position: '', top: '', left: '', zIndex: '', opacity: 1 });
-            $(recipientModal).find("#incoming-" + recipient).html("").append(balloon);
+            $(recipientModal).find("#incoming-" + recipientSafe + " .message-container").html("").append(balloon);
             updateDecryptionDropdown(recipient);
           });
         };
@@ -735,8 +740,9 @@
           if (!balloon) return;
           const decryptionKey = modal.querySelector(`.decryption-dropdown`).value;
           incomingBalloon[user] = removeEncryptionLayer(balloon, decryptionKey);
-          modal.querySelector("#incoming-" + user).innerHTML = "";
-          modal.querySelector("#incoming-" + user).appendChild(incomingBalloon[user]);
+          const inMsgContainer = modal.querySelector("#incoming-" + safeUser + " .message-container");
+          inMsgContainer.innerHTML = "";
+          inMsgContainer.appendChild(incomingBalloon[user]);
           checkDecryptionComplete(user);
           updateDecryptionDropdown(user);
         };
@@ -745,7 +751,8 @@
         btn.onclick = function() {
           const user = this.getAttribute("data-user");
           incomingBalloon[user] = null;
-          modal.querySelector("#incoming-" + user).innerHTML = "";
+          const inMsgContainer = modal.querySelector("#incoming-" + safeUser + " .message-container");
+          inMsgContainer.innerHTML = "";
           updateDecryptionDropdown(user);
         };
       });

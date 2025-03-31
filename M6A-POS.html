@@ -111,16 +111,21 @@
       gap: 40px;
       margin-bottom: 40px;
     }
-    /* Validators Section */
+    /* Validators Section with Two Rows */
     .validators-container {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 20px;
+    }
+    .validators-row {
+      display: flex;
       justify-content: center;
+      gap: 20px;
     }
     .validator {
       border-radius: 50%;
-      background: var(--cursor-color);
+      box-shadow: inset 0 40px 60px #345d7b;
+      background: #345d7b7c;
       color: var(--bg-color);
       display: flex;
       flex-direction: column;
@@ -135,12 +140,12 @@
       transform: scale(1.1);
     }
     .validator .info {
-      font-size: 0.8em;
+      font-size: 0.7em;
       margin-top: 5px;
     }
     /* Bar Chart Section */
     #barChartContainer {
-      width: 200px;
+      width: 75%;  /* Increased fixed width */
       text-align: left;
     }
     .bar-label {
@@ -167,7 +172,7 @@
       gap: 20px;
     }
     .block {
-      width: 140px;
+      width: 170px;
       min-height: 80px;
       background: var(--dynamic-hash-bg);
       border: 2px solid var(--button-border);
@@ -183,7 +188,7 @@
     .block:not(:first-child)::before {
       content: "";
       position: absolute;
-      left: -35px;
+      left: -20px;
       top: 50%;
       transform: translateY(-50%);
       border-top: 12px solid transparent;
@@ -286,13 +291,13 @@
       100% { transform: scale(25); opacity: 0; }
     }
     svg {
-    width: 100px;
-    height: 100px;
-  }
-#svg-container {
-background: none;
-transition: 0.7s all ease-in-out;
-}
+      width: 100px;
+      height: 100px;
+    }
+    #svg-container {
+      background: none;
+      transition: 0.7s all ease-in-out;
+    }
   </style>
 </head>
 <body>
@@ -316,51 +321,55 @@ transition: 0.7s all ease-in-out;
   <div id="mainContent">
     <!-- Main Container: Validators and Bar Chart -->
     <div id="mainContainer">
-      <!-- Validators Section -->
+      <!-- Validators Section (Grouped into two rows) -->
       <div class="validators-container">
-        <div class="validator" id="validator-0" data-name="Alice" data-coins="50" data-time="120" data-wallet="150">
-          <strong>Alice</strong>
-          <div class="info">
-            Stake: 50 BKS<br>
-            Time: 120 sec<br>
-            Wallet: 150 BKS<br>
-            Chosen: 0 times
+        <div class="validators-row">
+          <div class="validator" id="validator-0" data-name="Alice" data-coins="50" data-time="120" data-wallet="150">
+            <strong>Alice</strong>
+            <div class="info">
+              Stake: 50 BKS<br>
+              Time: 120 sec<br>
+              Wallet: 150 BKS<br>
+              Chosen: 0 times
+            </div>
+          </div>
+          <div class="validator" id="validator-2" data-name="Charlie" data-coins="20" data-time="180" data-wallet="80">
+            <strong>Charlie</strong>
+            <div class="info">
+              Stake: 20 BKS<br>
+              Time: 180 sec<br>
+              Wallet: 80 BKS<br>
+              Chosen: 0 times
+            </div>
+          </div>
+          <div class="validator" id="validator-4" data-name="Eve" data-coins="10" data-time="240" data-wallet="60">
+            <strong>Eve</strong>
+            <div class="info">
+              Stake: 10 BKS<br>
+              Time: 240 sec<br>
+              Wallet: 60 BKS<br>
+              Chosen: 0 times
+            </div>
           </div>
         </div>
-        <div class="validator" id="validator-1" data-name="Bob" data-coins="30" data-time="60" data-wallet="100">
-          <strong>Bob</strong>
-          <div class="info">
-            Stake: 30 BKS<br>
-            Time: 60 sec<br>
-            Wallet: 100 BKS<br>
-            Chosen: 0 times
+        <div class="validators-row">
+          <div class="validator" id="validator-1" data-name="Bob" data-coins="30" data-time="60" data-wallet="100">
+            <strong>Bob</strong>
+            <div class="info">
+              Stake: 30 BKS<br>
+              Time: 60 sec<br>
+              Wallet: 100 BKS<br>
+              Chosen: 0 times
+            </div>
           </div>
-        </div>
-        <div class="validator" id="validator-2" data-name="Charlie" data-coins="20" data-time="180" data-wallet="80">
-          <strong>Charlie</strong>
-          <div class="info">
-            Stake: 20 BKS<br>
-            Time: 180 sec<br>
-            Wallet: 80 BKS<br>
-            Chosen: 0 times
-          </div>
-        </div>
-        <div class="validator" id="validator-3" data-name="David" data-coins="40" data-time="90" data-wallet="120">
-          <strong>David</strong>
-          <div class="info">
-            Stake: 40 BKS<br>
-            Time: 90 sec<br>
-            Wallet: 120 BKS<br>
-            Chosen: 0 times
-          </div>
-        </div>
-        <div class="validator" id="validator-4" data-name="Eve" data-coins="10" data-time="240" data-wallet="60">
-          <strong>Eve</strong>
-          <div class="info">
-            Stake: 10 BKS<br>
-            Time: 240 sec<br>
-            Wallet: 60 BKS<br>
-            Chosen: 0 times
+          <div class="validator" id="validator-3" data-name="David" data-coins="40" data-time="90" data-wallet="120">
+            <strong>David</strong>
+            <div class="info">
+              Stake: 40 BKS<br>
+              Time: 90 sec<br>
+              Wallet: 120 BKS<br>
+              Chosen: 0 times
+            </div>
           </div>
         </div>
       </div>
@@ -402,7 +411,6 @@ transition: 0.7s all ease-in-out;
         .catch(error => console.error("Error loading SVG:", error));
     });
 
-    
     /***** Proof of Stake Visualizer Script *****/
     const validators = Array.from(document.querySelectorAll('.validator')).map(el => ({
       id: el.id,
@@ -493,7 +501,7 @@ transition: 0.7s all ease-in-out;
       const chartContainer = document.getElementById('barChartContainer');
       chartContainer.innerHTML = '<h3>Validator Selection Chart</h3>';
       let maxChosen = Math.max(...validators.map(v => v.chosenCount));
-      const maxBarWidth = 180;
+      const maxBarWidth = 700;
       validators.forEach(v => {
         const label = document.createElement('div');
         label.className = 'bar-label';

@@ -54,8 +54,8 @@
       text-align: left;
       z-index: 8000;
     }
-    .left-menu h1 { font-size: 1.2em; margin-bottom: 10px; }
-    .left-menu p { font-size: 0.9em; margin-bottom: 10px; }
+    .left-menu h1 { margin-bottom: 10px; }
+    .left-menu p { font-size: 1rem; margin-bottom: 10px; }
     .left-menu button,
     .left-menu input {
       width: 100%;
@@ -88,7 +88,7 @@
     /* Main Content Area */
     #mainContent {
       margin-left: 25rem;
-      padding-top: 80px;
+      padding-top: 40px;
     }
     /* Top Row: Universal Hash Pool & Miners */
     .top-row {
@@ -97,8 +97,8 @@
       margin-bottom: 20px;
     }
     .section {
-      background: #fff;
-      border: 1px solid #ddd;
+      background: none;
+      border: none;
       padding: 10px;
       overflow: auto;
       flex: 1;
@@ -109,13 +109,23 @@
       position: relative;
     }
     #hashPoolDiv {
+      padding: 10px;
       position: relative;
-      width: 300px;
+      width: 480px;
       height: 300px;
       margin: 0 auto;
-      border: 2px solid #999;
+      border: 1px solid #999;
+      border-style: dotted;
+    }
+    .miner button{
+      margin-top: 5px;
+      padding: 5px 10px;
+      background: none;
+      border: 1px solid #ffffff;
+      color: white;
     }
     #acceptableRegion {
+      box-shadow: 0 40px 60px #ffee5484;;
       position: absolute;
       width: 30px;
       height: 30px;
@@ -135,10 +145,11 @@
     /* Miners Section */
     #minersSection { text-align: center; }
     .miner {
+      box-shadow: inset 0 40px 60px #ffffff84;
       width: 120px;
       height: 120px;
       border-radius: 50%;
-      background: #4caf50;
+      background: #345d7b;
       display: inline-flex;
       flex-direction: column;
       justify-content: center;
@@ -148,12 +159,6 @@
       margin: 20px;
       position: relative;
     }
-    .miner button {
-      margin-top: 10px;
-      padding: 5px 10px;
-      font-size: 12px;
-      cursor: pointer;
-    }
     /* Bottom Row: Pending Block & Confirmed Blockchain */
     .bottom-row {
       display: flex;
@@ -161,7 +166,7 @@
       margin-top: 20px;
     }
     #pendingSection, #blockchainSection {
-      background: #fff;
+      background: none;
       border: 1px solid #ddd;
       padding: 10px;
       overflow: auto;
@@ -174,10 +179,12 @@
       padding: 10px;
     }
     .block {
-      border: 2px solid #2196f3;
+      color: white;
+      box-shadow: inset 0 40px 60px #0f4e7a;;
+      border: none;
       padding: 8px;
       border-radius: 5px;
-      background: #e3f2fd;
+      background: #82b7dd;
       margin: 5px;
     }
     #blockchain {
@@ -353,7 +360,7 @@ transition: 0.7s all ease-in-out;
   <!-- Left Menu: Block Simulation Controls -->
   <div class="left-menu">
     <div id="svg-container" style="display: flex; flex-direction: row;"></div>
-    <h1>Block Simulation</h1>
+    <h1>Proof-of-Work (PoW) Visualizer Module</h1>
     <p>
       Use these controls to simulate the proof-of-work process. Click "Pause All" to suspend mining and verification.
       Miners will continuously attempt to mine by generating random hash attempts. When a hash falls within the acceptable region (the center green square), the block is submitted for verification.
@@ -363,27 +370,20 @@ transition: 0.7s all ease-in-out;
   
   <!-- Main Content: Right Side -->
   <div id="mainContent">
-    <!-- Logo & Details -->
-    <div id="logo-container">
-      <!-- SVG logo will be loaded here -->
-    </div>
-    <div id="logo-details">
-      <strong>Proof-of-Work Visualizer</strong><br>
-      Mining Simulation
-    </div>
-    
     <!-- Top Row: Universal Hash Pool & Miners -->
     <div class="top-row">
       <!-- Universal Hash Pool Section -->
       <div class="section" id="hashPoolSection">
         <h3>Universal Possible Hash Values</h3>
+        <p style="margin-bottom: 10px;">Miners are trying to calculate hash-value through Brute-force using Nonce values that hits the acceptable yellow highlighted area</p>
         <div id="hashPoolDiv">
           <div id="acceptableRegion"></div>
         </div>
       </div>
       <!-- Miners Section -->
       <div class="section" id="minersSection">
-        <h3>Miners</h3>
+        <h3>Set <i>of</i> Miners</h3>
+        <p style="margin-bottom: 10px;">Each user can be started and paused accordingly</p>
         <div class="miner" data-id="1">
           <div>User 1</div>
           <button id="miner-btn-1" onclick="toggleMining(1)">Stop</button>
@@ -392,6 +392,7 @@ transition: 0.7s all ease-in-out;
           <div>User 2</div>
           <button id="miner-btn-2" onclick="toggleMining(2)">Stop</button>
         </div>
+        <br>
         <div class="miner" data-id="3">
           <div>User 3</div>
           <button id="miner-btn-3" onclick="toggleMining(3)">Stop</button>
@@ -402,11 +403,13 @@ transition: 0.7s all ease-in-out;
     <!-- Bottom Row: Pending Block & Confirmed Blockchain -->
     <div class="bottom-row">
       <div class="section" id="pendingSection">
-        <h3>Pending Block</h3>
+        <h3>Verification of Pending Blocks</h3>
+        <p style="margin-bottom: 10px;">Each block will be verified by each miner in the Blockchain before appending in the Blockchain</p>
         <div id="pendingBlocks"></div>
       </div>
       <div class="section" id="blockchainSection">
-        <h3>Blockchain</h3>
+        <h3>Demo Blockchain Network</h3>
+        <p style="margin-bottom: 10px;">Blocks are appended sequentially in the network after broadcasting</p>
         <div id="blockchain"></div>
       </div>
     </div>
@@ -419,6 +422,12 @@ transition: 0.7s all ease-in-out;
   <div class="cursor"></div>
   
   <script>
+        document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => { document.getElementById("svg-container").innerHTML = data; })
+        .catch(error => console.error("Error loading SVG:", error));
+    });
     /***** Proof-of-Work Visualizer Script *****/
     // Universal Hash Pool Setup
     const hashPoolDiv = document.getElementById('hashPoolDiv');
@@ -431,7 +440,8 @@ transition: 0.7s all ease-in-out;
     function createDot(x, y, color) {
       const dot = document.createElement('div');
       dot.className = 'dot';
-      dot.style.backgroundColor = color;
+      dot.style.background = color;
+      dot.style.boxShadow = '0 40px 60px #ffffff84';
       dot.style.left = (x - 4) + 'px';
       dot.style.top = (y - 4) + 'px';
       hashPoolDiv.appendChild(dot);
@@ -450,7 +460,11 @@ transition: 0.7s all ease-in-out;
       const minY = poolCenter.y - acceptableHeight / 2;
       const maxY = poolCenter.y + acceptableHeight / 2;
       const acceptable = (x >= minX && x <= maxX && y >= minY && y <= maxY);
-      createDot(x, y, acceptable ? 'green' : 'red');
+      createDot(x, y, acceptable
+  ? 'linear-gradient(90deg, rgba(24,174,52,1) 0%, rgba(129,255,153,1) 100%)'
+  : 'linear-gradient(90deg, rgba(174,44,24,1) 0%, rgba(255,129,129,1) 100%)'
+);
+
       if (acceptable) {
         const nonce = Math.floor(Math.random() * 1000000);
         submitBlock(minerId, nonce);
@@ -602,7 +616,7 @@ transition: 0.7s all ease-in-out;
         if (index < blockchainChain.length - 1) {
           const arrow = document.createElement('span');
           arrow.className = 'arrow';
-          arrow.textContent = '→';
+          arrow.textContent = '←';
           chainBlock.appendChild(arrow);
         }
         blockchainEl.appendChild(chainBlock);
