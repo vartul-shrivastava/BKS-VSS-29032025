@@ -1,3 +1,5 @@
+![BKS-VSS Dashboard](header.jpg "BKS-VSS Dashboard")
+
 # BKS-VSS: Blockchain Knowledge Stack infused Visualizer and Simulator Suite
 
 **Version:** v1.0.0  
