@@ -186,6 +186,10 @@
       overflow: auto;
       position: relative;
     }
+    svg {
+      height: 100px;
+      width: 100px;
+    }
     #systemTray { 
       width: 100%;
       position: fixed;
@@ -209,6 +213,7 @@
 <body>
   <div class="cursor"></div>
   <div class="user-management">
+    <a href="./index.html"><div id="svg-container" style="display: flex; flex-direction: row;"></div></a>
     <h1>Multi-User Token Visualizer</h1>
     <p>Add users to the system. Each user starts with a wallet of 100 coins, two fungible tokens (unique 4‑letter alphanumeric codes), and one unique NFT (non-transferable). Transfer coins, fungible tokens, or initiate an NFT transfer (which will require extra confirmation).</p>
     <input type="text" id="newUserName" placeholder="Enter new user name">
@@ -254,6 +259,14 @@
       }
       return result;
     }
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("bks-vss-nk-logo.svg")
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById("svg-container").innerHTML = data;
+        })
+        .catch(error => console.error("Error loading SVG:", error));
+    });
     
     // Create token balloon element
     function createTokenBalloon(tokenObj) {
