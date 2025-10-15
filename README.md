@@ -6,7 +6,7 @@
 **License:** MPL-2.0
 
 ## Authors
-- **Vartul Shrivastava** – Doctoral Researcher, IIM Bangalore, India  
+- **Vartul Shrivastava** – Doctoral Student, IIM Bangalore, India  
 - **Shekhar Shukla** – Faculty, IIM Indore, India
 
 ## Overview
